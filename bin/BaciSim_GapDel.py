@@ -228,12 +228,18 @@ if __name__ == "__main__":
     path = os.getcwd()
 
     parser=argparse.ArgumentParser(description='''You did not specify any parameters. ''',epilog="""All's well that ends well.""")
+
+    # parser.add_argument('-t', "--clonaltree", type=str,  help='tree')
+    # parser.add_argument('-a', "--alignmentFile", type=str, help='fasta file')
+    # parser.add_argument('-r', "--raxmltree", type=str,  help='raxmltree')
+    # parser.add_argument('-l', "--recomlogFile", type=str ,help='recombination log file')
+
     parser.add_argument('-t', "--clonaltree", type=str, default=path+'/Clonaltree.tree' , help='tree')
     parser.add_argument('-a', "--alignmentFile", type=str, default= path+'/', help='fasta file')
     parser.add_argument('-r', "--raxmltree", type=str, default= path+'/', help='raxmltree')
     parser.add_argument('-l', "--recomlogFile", type=str, default=path+'/BaciSim_Log.txt'  ,help='recombination log file')
     parser.add_argument('-x', "--xmlFile", default= path+'/template/GTR_template.xml' , type=str, help='xmlFile')
-    parser.add_argument('-j', "--jsonFile", default= path+'/template/GTR_template.json', type=str, help='jsonFile')
+    parser.add_argument('-j', "--jsonFile", default= path+'/template/GTR_temp_partial.json', type=str, help='jsonFile')
 
     args = parser.parse_args()
 
@@ -260,6 +266,7 @@ if __name__ == "__main__":
     # print(clonal_tree.as_ascii_plot(show_internal_node_labels=True))
 
     realData = real_recombination(recomLog,clonal_tree,nodes_number,alignment_len,tips_num)
+    realData = realData.transpose()
 
     make_fasta_gap(realData, clonal_tree, alignment)
     make_fasta_del(realData, clonal_tree, alignment)

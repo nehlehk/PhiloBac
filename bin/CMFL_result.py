@@ -31,9 +31,9 @@ def CFML_resultFig(tree,CFMLData):
     for i in range(taxa):
         ax = fig.add_subplot(taxa, 1, i + 1)
         if i >= tips_num:
-            node_label = str('NODE '+ str(i+1))
+            node_label = str('NODE_'+ str(i+1))
             desc = set()
-            d = give_descendents_CFML(tree, node_label, desc)
+            d = give_descendents(tree, i, desc,tips_num)
             ax.plot(CFMLData[:, i], label=str(i+1) + ' is mrca:' + str(d), color=color[i % 5])
         else:
             ax.plot(CFMLData[:, i], label=i, color=color[i % 5])
@@ -56,10 +56,11 @@ def CFML_recombination(CFML_recomLog,cfml_tree,tips_num):
         e = df['End'][i]
         node = df['Node'][i]
         if "NODE_" in str(node):
-            node = node[5:]
-            mynode = int(give_taxon_index(cfml_tree, node,tips_num))
-        else:
-            mynode = int(node)
+            node = int(node[5:]) -1
+            # print(node)
+        #     mynode = int(give_taxon_index(cfml_tree,node,tips_num))
+        # else:
+        mynode = int(node)
         CFMLData[s:e, mynode] = 1
         # CFMLData[s:e,int(node)] = 1
 
@@ -68,12 +69,17 @@ def CFML_recombination(CFML_recomLog,cfml_tree,tips_num):
 
 
 if __name__ == "__main__":
+    # clonal_path = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_Clonaltree.tree'
+    # cfml_log = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_CFML.importation_status.txt'
+    # cfml_tree = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_CFML.labelled_tree.newick'
+    # genomefile = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_Wholegenome_1_1.fasta'
+    # baciSimLog = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_BaciSim_Log.txt'
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
     parser.add_argument('-cl', "--clonaltreeFile", type=str, required=True, help='tree')
     parser.add_argument('-a', "--alignmentFile", type=str, required= True , help='fasta file')
-    parser.add_argument('-cl', "--cfmllogFile", type=str, help='cfmlFile')
-    parser.add_argument('-ct', "--cfmltreefile", type=str, help='cfmltreefile')
+    parser.add_argument('-cfl', "--cfmllogFile", type=str, help='cfmlFile')
+    parser.add_argument('-cft', "--cfmltreefile", type=str, help='cfmltreefile')
     parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
     args = parser.parse_args()
 
@@ -86,15 +92,12 @@ if __name__ == "__main__":
     clonal_tree = Tree.get_from_path(clonal_path, 'newick')
     cfml_tree = Tree.get_from_path(cfml_tree, 'newick')
 
-    # CFML_tree has label
-    # set_label(cfml_tree)
-
-
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
     nodes_number = len(clonal_tree.nodes())
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
     set_index(clonal_tree)
+    set_index(cfml_tree)
 
     realData = real_recombination(baciSimLog,clonal_tree,nodes_number,alignment_len,tips_num)
     CFMLData = CFML_recombination(cfml_log,cfml_tree,tips_num)

@@ -64,13 +64,14 @@ def give_taxon_index(tree,taxa,tips_num):
 def give_descendents(tree,node_index,result,tips_num):
   if node_index >= tips_num:
     internal_recom_node = tree.find_node_with_label(str(node_index))
-    children = internal_recom_node.child_nodes()
-    for n in range(len(children)):
-      r_node= int(children[n].index)
-      if r_node >= tips_num:
-        give_descendents(tree,r_node,result,tips_num)
-      else:
-        result.add(give_taxon(tree,r_node))
+    if not (internal_recom_node is None):
+        children = internal_recom_node.child_nodes()
+        for n in range(len(children)):
+          r_node= int(children[n].index)
+          if r_node >= tips_num:
+            give_descendents(tree,r_node,result,tips_num)
+          else:
+            result.add(give_taxon(tree,r_node))
   return result
 # **********************************************************************************************************************
 def nodes_separation(nodes):
