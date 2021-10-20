@@ -19,7 +19,7 @@ params.json_file = "${PWD}/bin/template/GTR_template.json"
 Genome = Channel.value(10)
 frequencies = Channel.value(' 0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
-repeat_range = Channel.value(1..2)
+repeat_range = Channel.value(1..1)
 recom_range = Channel.value(1..3)
 
 
@@ -31,23 +31,14 @@ def HelpMessage() {
 
   The typical command for running the pipeline is as follows:
 
-  nextflow run main.nf --mode [sim/rdm/emp...] --other_options
-
-  Example scripts can be found in rec-bench/example_runscripts
+  nextflow run main.nf --mode [sim/emp...] --other_options
 
   Process arguments:
-    --out   [str]     Name of output folder. Default 'baseDir/out'
-    --label [str]     PBS queue label for '--mode bm' e.g. 'pbs_small' 'pbs_med'
-
-    Recommended --label options (based on seq length < 2000 nt):
-    --label pbs_small for sample size < 1001
-    --label pbs_med   for sample size > 1000
+    --out   [str]     Name of output folder. Default 'baseDir/Results'
 
   1. Generate simulation datasets:
     * Please define evolutionary parameters in main.nf *
     --mode sim
-    --seq [.fasta]    Path to input .fasta file
-    --xml [.xml]      SANTA-SIM .xml configuration. Defaults to ./santa.xml
 
   2. Visualise/summarise simulation outputs (sequence stats, breakpoints):
     --mode sim_v      Summarise output simulation files for sim_bp
@@ -257,7 +248,7 @@ process CFML_result {
 
      output:
         path 'CFML_Recombination.jpeg' , emit: CFMLFig
-        path 'RMSE_CFML.csv' , emit : Rmse_CFML
+        path 'RMSE_CFML.csv' , emit : RMSE_CFML
 
      """
        CMFL_result.py  -cl ${Clonaltree}  -a ${Wholegenome} -cfl ${CFML_recom}  -cft ${CFMLtree}  -rl ${Recomlog}
@@ -310,54 +301,125 @@ process Gubbins_result {
 
 
 
+workflow Sim {
+        MakeClonalTree(Genome,repeat_range)
+        BaciSim(MakeClonalTree.out.Genome,MakeClonalTree.out.Clonaltree,recom_range)
+        Seq_gen(BaciSim.out.BaciSimtrees,frequencies,rates)
+
+        emit:
+          clonaltree = BaciSim.out.Clonaltree
+          genome = Seq_gen.out.Wholegenome
+          recom_log = BaciSim.out.Recomlog
+          iteration = BaciSim.out.Range
+          recomRange = BaciSim.out.RecomRange
+}
+
+workflow Rax {
+        take:
+            genome
+            iteration
+            recomRange
+        main:
+            Get_raxml_tree(genome,iteration,recomRange)
+        emit:
+            raxml_tree = Get_raxml_tree.out.MyRaxML
+}
+
+workflow Best {
+        take:
+            genome
+            clonaltree
+            raxml_tree
+            recom_log
+            iteration
+            recomRange
+        main:
+            Make_BaciSim_GapDel(clonaltree,genome,recom_log,raxml_tree,iteration)
+            Get_raxml_tree_gap(Make_BaciSim_GapDel.out.Gap_alignment,iteration,recomRange)
+            Get_raxml_tree_del(Make_BaciSim_GapDel.out.Del_alignment,iteration,recomRange)
+}
+
+workflow Benchmark {
+        take:
+            genome
+            clonaltree
+            raxml_tree
+            recom_log
+            iteration
+            recomRange
+        main:
+            CFML(genome,raxml_tree,iteration,recomRange)
+            CFML_result(genome,CFML.out.CFML_recom,CFML.out.CFMLtree,recom_log,clonaltree)
+            Gubbins(genome,iteration,recomRange)
+            Gubbins_result(clonaltree,recom_log,genome,Gubbins.out.Gubbinstree,Gubbins.out.GubbinsRecom,Gubbins.out.GubbinsStat)
+        emit:
+            CFMLtree = CFML.out.CFMLtree
+            RMSE_CFML = CFML_result.out.RMSE_CFML
+            RMSE_Gubbins = Gubbins_result.out.Rmse_Gubbins
+            GubbinsRescaletree = Gubbins_result.out.GubbinsRescaletree
+
+}
+
+
 
 workflow {
-
-    HelpMessage()
-
-    if (params.mode == 'sim') {
-        println "Running simulation..."
-
-        MakeClonalTree(Genome,repeat_range)
-
-        BaciSim(MakeClonalTree.out.Genome,MakeClonalTree.out.Clonaltree,recom_range)
-
-        Seq_gen(BaciSim.out.BaciSimtrees,frequencies,rates)
-    }
-
-    if (params.mode == 'emp') {
-        println "Detect recombination in empirical sequence alignments..."
-    }
-
-
-    if (params.mode == 'best') {
-        println ""
-        Get_raxml_tree(Seq_gen.out.Wholegenome,BaciSim.out.Range,BaciSim.out.RecomRange)
-        Make_BaciSim_GapDel(BaciSim.out.Clonaltree,Seq_gen.out.Wholegenome,BaciSim.out.Recomlog,Get_raxml_tree.out.MyRaxML,BaciSim.out.Range)
-        Get_raxml_tree_gap(Make_BaciSim_GapDel.out.Gap_alignment,BaciSim.out.Range,BaciSim.out.RecomRange)
-        Get_raxml_tree_del(Make_BaciSim_GapDel.out.Del_alignment,BaciSim.out.Range,BaciSim.out.RecomRange)
-    }
-
-    if (params.mode == 'bench') {
-        println ""
-
-        Get_raxml_tree(Seq_gen.out.Wholegenome,BaciSim.out.Range,BaciSim.out.RecomRange)
-        CFML(Seq_gen.out.Wholegenome,Get_raxml_tree.out.MyRaxML,BaciSim.out.Range,BaciSim.out.RecomRange)
-        CFML_result(Seq_gen.out.Wholegenome,CFML.out.CFML_recom,CFML.out.CFMLtree,BaciSim.out.Recomlog,BaciSim.out.Clonaltree)
-
-        Gubbins(Seq_gen.out.Wholegenome,BaciSim.out.Range,BaciSim.out.RecomRange)
-        Gubbins_result(BaciSim.out.Clonaltree,BaciSim.out.Recomlog,Seq_gen.out.Wholegenome,Gubbins.out.Gubbinstree,Gubbins.out.GubbinsRecom,Gubbins.out.GubbinsStat)
-
-    }
-
-    if (params.mode == 'cmp_rec') {
-        println ""
-    }
-
-    if (params.mode == 'cmp_tree') {
-        println ""
-    }
+    Sim()
+    Rax(Sim.out.genome,Sim.out.iteration,Sim.out.recomRange)
+    Best(Sim.out.genome,Sim.out.clonaltree,Rax.out.raxml_tree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange)
+    Benchmark(Sim.out.genome,Sim.out.clonaltree,Rax.out.raxml_tree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange)
+}
 
 
 
-    }
+// workflow {
+//
+//
+//     if (params.help) {
+//         HelpMessage()
+//         exit 0
+//     }
+//
+//     if (params.mode == 'sim') {
+//         println "Running simulation..."
+//
+//         MakeClonalTree(Genome,repeat_range)
+//         BaciSim(MakeClonalTree.out.Genome,MakeClonalTree.out.Clonaltree,recom_range)
+//         Seq_gen(BaciSim.out.BaciSimtrees,frequencies,rates)
+//     }
+//
+//
+//     if (params.mode == 'best') {
+//         Get_raxml_tree(Seq_gen.out.Wholegenome,BaciSim.out.Range,BaciSim.out.RecomRange)
+//         Make_BaciSim_GapDel(BaciSim.out.Clonaltree,Seq_gen.out.Wholegenome,BaciSim.out.Recomlog,Get_raxml_tree.out.MyRaxML,BaciSim.out.Range)
+//         Get_raxml_tree_gap(Make_BaciSim_GapDel.out.Gap_alignment,BaciSim.out.Range,BaciSim.out.RecomRange)
+//         Get_raxml_tree_del(Make_BaciSim_GapDel.out.Del_alignment,BaciSim.out.Range,BaciSim.out.RecomRange)
+//     }
+//
+//     if (params.mode == 'bench') {
+//         println ""
+//
+//         Get_raxml_tree(Seq_gen.out.Wholegenome,BaciSim.out.Range,BaciSim.out.RecomRange)
+//         CFML(Seq_gen.out.Wholegenome,Get_raxml_tree.out.MyRaxML,BaciSim.out.Range,BaciSim.out.RecomRange)
+//         CFML_result(Seq_gen.out.Wholegenome,CFML.out.CFML_recom,CFML.out.CFMLtree,BaciSim.out.Recomlog,BaciSim.out.Clonaltree)
+//
+//         Gubbins(Seq_gen.out.Wholegenome,BaciSim.out.Range,BaciSim.out.RecomRange)
+//         Gubbins_result(BaciSim.out.Clonaltree,BaciSim.out.Recomlog,Seq_gen.out.Wholegenome,Gubbins.out.Gubbinstree,Gubbins.out.GubbinsRecom,Gubbins.out.GubbinsStat)
+//
+//     }
+//
+//
+//     if (params.mode == 'emp') {
+//         println "Detect recombination in empirical sequence alignments..."
+//     }
+//
+//     if (params.mode == 'cmp_rec') {
+//         println ""
+//     }
+//
+//     if (params.mode == 'cmp_tree') {
+//         println ""
+//     }
+//
+//
+//
+//     }
