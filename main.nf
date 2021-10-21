@@ -3,62 +3,69 @@ nextflow.enable.dsl = 2
 
 
 
-params.genomeSize = '5000'
-params.recom_len = '100'
-params.tMRCA = '0.01'
-params.nu_sim = '0.05'
-params.recom_rate = '0.02'
-params.sim_stat = 0 //0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes
-params.sim_fixed = 1 //0 for fixed number and fixed len of recombination and 1 for normal/random way making recombination events.
-params.out = 'Results'
-params.xml_file = "${PWD}/bin/template/GTR_template.xml"
-params.json_file = "${PWD}/bin/template/GTR_template.json"
+params.dummy_file = "/home/nehleh/assets/NO_FILE"
+dummy_file = file(params.dummy_file)
+params.test_file= "/home/nehleh/assets/RMSE_Gubbins.csv"
+c_file = file(params.test_file)
 
 
 
-Genome = Channel.value(10)
+// Genome = Channel.value(10)
 frequencies = Channel.value(' 0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
-repeat_range = Channel.value(1..1)
+repeat_range = Channel.value(1..3)
 recom_range = Channel.value(1..3)
+simulation = Channel.value(1)
+params.xml_file = "${PWD}/bin/template/GTR_template.xml"
+json_file = "${PWD}/bin/template/GTR_template.json"
 
 
 
 
-def HelpMessage() {
+params.genome = 10
+params.genomelen = '5000'
+params.recomlen = '100'
+params.recomrate = '0.02'
+params.tMRCA = '0.01'
+params.nu_sim = '0.05'
+params.sim_stat = 0 //0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes
+params.sim_fixed = 0 //0 for fixed number and fixed len of recombination and 1 for normal/random way making recombination events.
+// params.outDir = 'Results'
+params.seq = "/home/nehleh/PhyloCode/Result/Results_13092021/num_4/num_4_Wholegenome_4.fasta"
+// params.help = false
+
+
+
+def helpMessage() {
   log.info"""
+
   Usage:
 
   The typical command for running the pipeline is as follows:
+    nextflow run main.nf --mode [sim/emp] --other_options
 
-  nextflow run main.nf --mode [sim/emp...] --other_options
+  Options specifying the evolutionary parameters for simulation:
+      --mode sim
+    Optional arguments:
+      --genome               value > 0 (default 10)                 Number of simulated genomes
+      --genomelen            value > 1000 (default 100000)          Length of simulated alignment
+      --recomlen             value >0 (default 500)                 Length of recombination
+      --tMRCA                tMRCA >0 (default 0.01)                TMRCA
+      --recomrate            value >0 (default 0.05)                Recombination rate
+      --nu_sim               value >0 (default 0.05)                nu value using in simulated data
+      --best                 true or false (default)                show the best answer
+      --method               pb,cfml,gub (default pb)               Recombination detection methods(PhiloBacteria,ClonalFrameML,Gubbins)
+      --analyse              value: 0,1,2 (default 2)               0:recombination detection, 1: corrected phylogeny, 2: both 0 and 1
+  Options for detecting recombination in empirical sequence alignments:
+    Mandatory arguments:
+      --mode emp
+      --seq                  fasta file                             Path to input .fasta file
+      --method               pb,cfml,gub (default pb)               Recombination detection methods(PhiloBacteria,ClonalFrameML,Gubbins)
+      --analyse              value: 0,1,2 (default 2)               0:recombination detection, 1: corrected phylogeny, 2: both 0 and 1
 
-  Process arguments:
-    --out   [str]     Name of output folder. Default 'baseDir/Results'
-
-  1. Generate simulation datasets:
-    * Please define evolutionary parameters in main.nf *
-    --mode sim
-
-  2. Visualise/summarise simulation outputs (sequence stats, breakpoints):
-    --mode sim_v      Summarise output simulation files for sim_bp
-    --simdir [str]    Path to dir which contains folder for simulation files (S4_santa). Default 'baseDir/out'
-
-  3. Benchmark recombination detection methods using simulated data:
-    --mode div        Move simulated .fasta into subdirs by size. * Use prior to `--mode bm`*
-
-    --mode bm         Detect recombination in simulated datasets and benchmark methods
-    --seqn   [int]    Sample size (number of sequences in alignment) to analyse. * Required for `--mode bm` *
-    --simdir [str]    Path to dir which contains folder for simulation files (S4_santa). Default 'baseDir/out'
-
-  4. Detect recombination in empirical sequence alignments:
-    --mode emp
-    --seq [.fasta]    Path to input .fasta file
-
-  5. Calculate classification metrics:
-    --mode class       Determine conditions of simulations vs detected recombination
-    --rec_path [str]   Path to folder where output for --mode bm is
-    --out      [str]   Path to write files to
+  Output Options:
+      --outDir               directory                              Output directory to place final output
+  --help                                                            This usage statement
 
    """.stripIndent()
  }
@@ -66,30 +73,32 @@ def HelpMessage() {
 
 
 process MakeClonalTree {
-     publishDir "${params.out}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_$filename" }
+     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_$filename" }
      maxForks 1
      errorStrategy 'ignore'
 
      input:
-         val Genome
          each repeat_range
 
      output:
          tuple val(repeat_range), path('Clonaltree.tree'), emit: Clonaltree
-         val Genome , emit: Genome
+//          val Genome , emit: Genome
+//          val repeat_range , emit: Range
      """
-       make_clonaltree.py -n ${Genome}  -t ${params.tMRCA}
+       make_clonaltree.py -n ${params.genome}  -t ${params.tMRCA}
      """
 }
 
 process BaciSim {
-     publishDir "${params.out}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
+     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
      maxForks 1
 
      input:
-         val Genome
+//          val Genome
          tuple val(repeat_range), path('Clonaltree')
+//          val repeat_range
          each recom_range
+
 
      output:
          tuple val(repeat_range) ,val(recom_range), path("BaciSimTrees.tree") , emit: BaciSimtrees
@@ -101,13 +110,13 @@ process BaciSim {
          val recom_range , emit: RecomRange
 
      """
-       BaciSim.py -cl ${Clonaltree} -n ${Genome} -g ${params.genomeSize} -l ${params.recom_len} -r ${params.recom_rate}  -nu ${params.nu_sim} -e ${recom_range} -s ${params.sim_stat} -f ${params.sim_fixed}
+       BaciSim.py -cl ${Clonaltree} -n ${params.genome} -g ${params.genomelen} -l ${params.recomlen} -r ${params.recomrate}  -nu ${params.nu_sim} -e ${recom_range} -s ${params.sim_stat} -f ${params.sim_fixed}
      """
 }
 
 
 process Seq_gen {
-    publishDir "${params.out}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
+    publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
     maxForks 1
     errorStrategy 'ignore'
 
@@ -122,12 +131,12 @@ process Seq_gen {
 
     """
      numTrees=\$(wc -l < BaciSimTrees.tree | awk '{ print \$1 }')
-     seq-gen  -mGTR  -l${params.genomeSize} -r$r -f$f -s1 -of BaciSimTrees.tree -p \$numTrees > Wholegenome_${repeat_range}_${recom_range}.fasta
+     seq-gen  -mGTR  -l${params.genomelen} -r$r -f$f -s1 -of BaciSimTrees.tree -p \$numTrees > Wholegenome_${repeat_range}_${recom_range}.fasta
     """
 }
 
 process Get_raxml_tree {
-    publishDir "${params.out}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
+    publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
     maxForks 1
     errorStrategy 'ignore'
 
@@ -145,7 +154,7 @@ process Get_raxml_tree {
 }
 
 process Make_BaciSim_GapDel {
-    publishDir "${params.out}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
+    publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
     maxForks 1
     errorStrategy 'ignore'
 
@@ -174,7 +183,7 @@ process Make_BaciSim_GapDel {
 
 
 process Get_raxml_tree_gap {
-    publishDir "${params.out}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
+    publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
     maxForks 1
     errorStrategy 'ignore'
 
@@ -191,7 +200,7 @@ process Get_raxml_tree_gap {
 }
 
 process Get_raxml_tree_del {
-    publishDir "${params.out}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
+    publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
     maxForks 1
     errorStrategy 'ignore'
 
@@ -210,7 +219,7 @@ process Get_raxml_tree_del {
 
 
 process CFML {
-   publishDir "${params.out}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
+   publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
    maxForks 1
 //    errorStrategy 'ignore'
 
@@ -235,7 +244,7 @@ process CFML {
 
 
 process CFML_result {
-     publishDir "${params.out}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
+     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
      maxForks 1
 //      errorStrategy 'ignore'
 
@@ -245,13 +254,14 @@ process CFML_result {
         path CFMLtree
         tuple val(repeat_range),val(recom_range), path('Recomlog')
         path Clonaltree
+        val simulation
 
      output:
         path 'CFML_Recombination.jpeg' , emit: CFMLFig
-        path 'RMSE_CFML.csv' , emit : RMSE_CFML
+//         path 'RMSE_CFML.csv' , emit : RMSE_CFML
 
      """
-       CMFL_result.py  -cl ${Clonaltree}  -a ${Wholegenome} -cfl ${CFML_recom}  -cft ${CFMLtree}  -rl ${Recomlog}
+       CMFL_result.py  -cl ${Clonaltree}  -a ${Wholegenome} -cfl ${CFML_recom}  -cft ${CFMLtree}  -rl ${Recomlog} -sim ${simulation}
 
 
      """
@@ -259,7 +269,7 @@ process CFML_result {
 
 
 process Gubbins {
-    publishDir "${params.out}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
+    publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
     maxForks 1
 
      input:
@@ -278,7 +288,7 @@ process Gubbins {
 }
 
 process Gubbins_result {
-    publishDir "${params.out}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
+    publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
     maxForks 1
 
      input:
@@ -288,22 +298,23 @@ process Gubbins_result {
         path Gubbinstree
         path GubbinsRecom
         path GubbinsStat
-
+        val simulation
 
     output:
         path 'Gubbins_Recombination.jpeg' , emit: GubbinsFig
-        path 'RMSE_Gubbins.csv' , emit : Rmse_Gubbins
+//         path 'RMSE_Gubbins.csv' , emit : Rmse_Gubbins
         path 'Gubbinstree_rescale.tree' , emit: GubbinsRescaletree
     """
-     Gubbins_result.py  -cl ${Clonaltree} -a ${Wholegenome}  -rl ${Recomlog}  -gl ${GubbinsRecom} -gt ${Gubbinstree} -gs ${GubbinsStat}
+     Gubbins_result.py  -cl ${Clonaltree} -a ${Wholegenome}  -rl ${Recomlog}  -gl ${GubbinsRecom} -gt ${Gubbinstree} -gs ${GubbinsStat} -sim ${simulation}
     """
 }
 
 
 
 workflow Sim {
-        MakeClonalTree(Genome,repeat_range)
-        BaciSim(MakeClonalTree.out.Genome,MakeClonalTree.out.Clonaltree,recom_range)
+
+        MakeClonalTree(repeat_range)
+        BaciSim(MakeClonalTree.out.Clonaltree,recom_range)
         Seq_gen(BaciSim.out.BaciSimtrees,frequencies,rates)
 
         emit:
@@ -347,15 +358,16 @@ workflow Benchmark {
             recom_log
             iteration
             recomRange
+            simulation
         main:
             CFML(genome,raxml_tree,iteration,recomRange)
-            CFML_result(genome,CFML.out.CFML_recom,CFML.out.CFMLtree,recom_log,clonaltree)
+            CFML_result(genome,CFML.out.CFML_recom,CFML.out.CFMLtree,recom_log,clonaltree,simulation)
             Gubbins(genome,iteration,recomRange)
-            Gubbins_result(clonaltree,recom_log,genome,Gubbins.out.Gubbinstree,Gubbins.out.GubbinsRecom,Gubbins.out.GubbinsStat)
+            Gubbins_result(clonaltree,recom_log,genome,Gubbins.out.Gubbinstree,Gubbins.out.GubbinsRecom,Gubbins.out.GubbinsStat,simulation)
         emit:
             CFMLtree = CFML.out.CFMLtree
-            RMSE_CFML = CFML_result.out.RMSE_CFML
-            RMSE_Gubbins = Gubbins_result.out.Rmse_Gubbins
+//             RMSE_CFML = CFML_result.out.RMSE_CFML
+//             RMSE_Gubbins = Gubbins_result.out.Rmse_Gubbins
             GubbinsRescaletree = Gubbins_result.out.GubbinsRescaletree
 
 }
@@ -363,63 +375,40 @@ workflow Benchmark {
 
 
 workflow {
-    Sim()
-    Rax(Sim.out.genome,Sim.out.iteration,Sim.out.recomRange)
-    Best(Sim.out.genome,Sim.out.clonaltree,Rax.out.raxml_tree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange)
-    Benchmark(Sim.out.genome,Sim.out.clonaltree,Rax.out.raxml_tree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange)
+    if (params.help) {
+        helpMessage()
+        exit 0
+    }
+    if (params.mode == 'sim') {
+        println "Detect recombination in simulated data..."
+        simulation = 1
+        Sim()
+        Rax(Sim.out.genome,Sim.out.iteration,Sim.out.recomRange)
+
+        if (params.best == true) {
+            Best(Sim.out.genome,Sim.out.clonaltree,Rax.out.raxml_tree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange)
+        }
+        if (params.method == 'cfml') {
+            Benchmark(Sim.out.genome,Sim.out.clonaltree,Rax.out.raxml_tree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange,simulation)
+        }
+        if (params.method == 'gub') {
+            Benchmark(Sim.out.genome,Sim.out.clonaltree,Rax.out.raxml_tree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange,simulation)
+        }
+        if (params.method == 'pb') {
+            Benchmark(Sim.out.genome,Sim.out.clonaltree,Rax.out.raxml_tree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange,simulation)
+        }
+    }
+
+     if (params.mode == 'emp') {
+        println "Detect recombination in empirical sequence alignments..."
+        simulation = 0
+        recom_log = tuple(1,1,dummy_file)
+        clonaltree = dummy_file
+        genome = params.seq
+        Rax(genome,1,1)
+        if (params.submode == 'bench') {
+            Benchmark(genome,clonaltree,Rax.out.raxml_tree,recom_log,1,1,simulation)
+        }
+    }
+
 }
-
-
-
-// workflow {
-//
-//
-//     if (params.help) {
-//         HelpMessage()
-//         exit 0
-//     }
-//
-//     if (params.mode == 'sim') {
-//         println "Running simulation..."
-//
-//         MakeClonalTree(Genome,repeat_range)
-//         BaciSim(MakeClonalTree.out.Genome,MakeClonalTree.out.Clonaltree,recom_range)
-//         Seq_gen(BaciSim.out.BaciSimtrees,frequencies,rates)
-//     }
-//
-//
-//     if (params.mode == 'best') {
-//         Get_raxml_tree(Seq_gen.out.Wholegenome,BaciSim.out.Range,BaciSim.out.RecomRange)
-//         Make_BaciSim_GapDel(BaciSim.out.Clonaltree,Seq_gen.out.Wholegenome,BaciSim.out.Recomlog,Get_raxml_tree.out.MyRaxML,BaciSim.out.Range)
-//         Get_raxml_tree_gap(Make_BaciSim_GapDel.out.Gap_alignment,BaciSim.out.Range,BaciSim.out.RecomRange)
-//         Get_raxml_tree_del(Make_BaciSim_GapDel.out.Del_alignment,BaciSim.out.Range,BaciSim.out.RecomRange)
-//     }
-//
-//     if (params.mode == 'bench') {
-//         println ""
-//
-//         Get_raxml_tree(Seq_gen.out.Wholegenome,BaciSim.out.Range,BaciSim.out.RecomRange)
-//         CFML(Seq_gen.out.Wholegenome,Get_raxml_tree.out.MyRaxML,BaciSim.out.Range,BaciSim.out.RecomRange)
-//         CFML_result(Seq_gen.out.Wholegenome,CFML.out.CFML_recom,CFML.out.CFMLtree,BaciSim.out.Recomlog,BaciSim.out.Clonaltree)
-//
-//         Gubbins(Seq_gen.out.Wholegenome,BaciSim.out.Range,BaciSim.out.RecomRange)
-//         Gubbins_result(BaciSim.out.Clonaltree,BaciSim.out.Recomlog,Seq_gen.out.Wholegenome,Gubbins.out.Gubbinstree,Gubbins.out.GubbinsRecom,Gubbins.out.GubbinsStat)
-//
-//     }
-//
-//
-//     if (params.mode == 'emp') {
-//         println "Detect recombination in empirical sequence alignments..."
-//     }
-//
-//     if (params.mode == 'cmp_rec') {
-//         println ""
-//     }
-//
-//     if (params.mode == 'cmp_tree') {
-//         println ""
-//     }
-//
-//
-//
-//     }
