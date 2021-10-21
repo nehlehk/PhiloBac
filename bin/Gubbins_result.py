@@ -91,11 +91,7 @@ def rescale_gubbtree(gubbins_tree,gubb_csv,alignment_len):
     #     myfile.write(g_tree)
     #     myfile.close()
 # **********************************************************************************************************************
-
-
-
 if __name__ == "__main__":
-
 
     # clonal_path = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/num_1_Clonaltree.tree'
     # genomefile = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/num_1_recom_1_Wholegenome_1_1.fasta'
@@ -105,40 +101,47 @@ if __name__ == "__main__":
     # gubb_csv = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/gubbins.per_branch_statistics.csv'
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
-    parser.add_argument('-cl', "--clonaltreeFile", type=str, required=True, help='clona tree from BaciSim')
-    parser.add_argument('-a', "--alignmentFile", type=str, required= True , help='fasta file')
+    parser.add_argument('-cl', "--clonaltreeFile", type=str,  help='clona tree from BaciSim')
+    parser.add_argument('-a', "--alignmentFile", type=str,  help='fasta file')
     parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
     parser.add_argument('-gl', "--gubblogFile", type=str, help='Gubbins Log File')
     parser.add_argument('-gt', "--gubbtreefile", type=str, help='Gubbins tree File')
     parser.add_argument('-gs', "--gubbcsvfile", type=str, help='Gubbins per_branch_statistics csv File')
+    parser.add_argument('-sim', "--simulation", type=int, default=1, help='1 for the simulation data and 0 for emprical sequence')
 
     args = parser.parse_args()
 
-    clonal_path = args.clonaltreeFile
+
     genomefile = args.alignmentFile
-    baciSimLog = args.recomlogFile
     gubbins_log = args.gubblogFile
     gubb_tree = args.gubbtreefile
     gubb_csv = args.gubbcsvfile
+    simulation = args.simulation
 
-    clonal_tree = Tree.get_from_path(clonal_path, 'newick')
-    gubbins_tree = Tree.get_from_path(gubb_tree, 'newick')
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
-    nodes_num_c = len(clonal_tree.nodes())
+    gubbins_tree = Tree.get_from_path(gubb_tree, 'newick')
+    set_index(gubbins_tree)
     nodes_num_g = len(gubbins_tree.nodes())
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
-    set_index(clonal_tree)
-    set_index(gubbins_tree)
 
-
-
-    realData = real_recombination(baciSimLog,clonal_tree,nodes_num_c,alignment_len,tips_num)
-    GubbData,df = Gubbins_recombination(gubbins_log, gubbins_tree, nodes_num_g, alignment_len)
-    Gubbins_resultFig(gubbins_tree,GubbData, tips_num,nodes_num_g, df)
-    rmse_real_CFML = mean_squared_error(realData, GubbData, squared=False)
-    write_rmse(rmse_real_CFML,'RMSE_Gubbins.csv')
+    GubbData, df = Gubbins_recombination(gubbins_log, gubbins_tree, nodes_num_g, alignment_len)
+    Gubbins_resultFig(gubbins_tree, GubbData, tips_num, nodes_num_g, df)
     rescale_gubbtree(gubbins_tree, gubb_csv, alignment_len)
+
+
+    if simulation == 1:
+        clonal_path = args.clonaltreeFile
+        baciSimLog = args.recomlogFile
+        clonal_tree = Tree.get_from_path(clonal_path, 'newick')
+        nodes_num_c = len(clonal_tree.nodes())
+        set_index(clonal_tree)
+        realData = real_recombination(baciSimLog, clonal_tree, nodes_num_c, alignment_len, tips_num)
+        rmse_real_CFML = mean_squared_error(realData, GubbData, squared=False)
+        write_rmse(rmse_real_CFML, 'RMSE_Gubbins.csv')
+
+
+
 
 
 
