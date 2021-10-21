@@ -76,31 +76,39 @@ if __name__ == "__main__":
     # baciSimLog = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_BaciSim_Log.txt'
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
-    parser.add_argument('-cl', "--clonaltreeFile", type=str, required=True, help='tree')
-    parser.add_argument('-a', "--alignmentFile", type=str, required= True , help='fasta file')
+    parser.add_argument('-cl', "--clonaltreeFile", type=str, help='tree')
+    parser.add_argument('-a', "--alignmentFile", type=str, help='fasta file')
     parser.add_argument('-cfl', "--cfmllogFile", type=str, help='cfmlFile')
     parser.add_argument('-cft', "--cfmltreefile", type=str, help='cfmltreefile')
     parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
+    parser.add_argument('-sim', "--simulation", type=int, default= 1 , help='1 for the simulation data and 0 for emprical sequence')
     args = parser.parse_args()
 
-    clonal_path = args.clonaltreeFile
     cfml_log = args.cfmllogFile
     cfml_tree = args.cfmltreefile
     genomefile = args.alignmentFile
-    baciSimLog = args.recomlogFile
+    simulation = args.simulation
 
-    clonal_tree = Tree.get_from_path(clonal_path, 'newick')
+
     cfml_tree = Tree.get_from_path(cfml_tree, 'newick')
-
+    nodes_number = len(cfml_tree.nodes())
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
-    nodes_number = len(clonal_tree.nodes())
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
-    set_index(clonal_tree)
     set_index(cfml_tree)
-
-    realData = real_recombination(baciSimLog,clonal_tree,nodes_number,alignment_len,tips_num)
     CFMLData = CFML_recombination(cfml_log,cfml_tree,tips_num)
     CFML_resultFig(cfml_tree, CFMLData)
-    rmse_real_CFML = mean_squared_error(realData, CFMLData, squared=False)
-    write_rmse(rmse_real_CFML,'RMSE_CFML.csv')
+
+    if simulation == 1 :
+        clonal_path = args.clonaltreeFile
+        baciSimLog = args.recomlogFile
+        clonal_tree = Tree.get_from_path(clonal_path, 'newick')
+        nodes_number = len(clonal_tree.nodes())
+        set_index(clonal_tree)
+        realData = real_recombination(baciSimLog, clonal_tree, nodes_number, alignment_len, tips_num)
+        rmse_real_CFML = mean_squared_error(realData, CFMLData, squared=False)
+        write_rmse(rmse_real_CFML, 'RMSE_CFML.csv')
+
+
+
+
