@@ -261,7 +261,7 @@ process CFML_result {
 //         path 'RMSE_CFML.csv' , emit : RMSE_CFML
 
      """
-       CMFL_result.py  -cl ${Clonaltree}  -a ${Wholegenome} -cfl ${CFML_recom}  -cft ${CFMLtree}  -rl ${Recomlog} -sim ${simulation}
+       CFML_result.py  -cl ${Clonaltree}  -a ${Wholegenome} -cfl ${CFML_recom}  -cft ${CFMLtree}  -rl ${Recomlog} -sim ${simulation}
 
 
      """
