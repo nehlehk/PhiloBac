@@ -268,16 +268,16 @@ if __name__ == "__main__":
     realData = real_recombination(recomLog,clonal_tree,nodes_number,alignment_len,tips_num)
     realData = realData.transpose()
 
-    make_fasta_gap(realData, clonal_tree, alignment)
-    make_fasta_del(realData, clonal_tree, alignment)
+    # make_fasta_gap(realData, clonal_tree, alignment)
+    # make_fasta_del(realData, clonal_tree, alignment)
 
     make_xml_seq(xml_path,clonal_tree)
     make_xml_gap(realData, xml_path, clonal_tree)
-    make_xml_del(realData, xml_path, clonal_tree)
+    # make_xml_del(realData, xml_path, clonal_tree)
 
-    gap_prob = [0.99,0.99,0.99,0.99]
-    normal_prob = [0.0001,0.0001,0.0001,0.0001]
+    gap_prob = [0.9,0.9,0.9,0.9]
+    normal_prob = [0.1,0.1,0.1,0.1]
 
     make_xml_partial(realData, xml_path, clonal_tree,gap_prob,normal_prob)
-    make_xml_partial_certain(realData, xml_path, clonal_tree)
-    make_json_partial(realData, json_path, raxml_tree,gap_prob,normal_prob)
+    # make_xml_partial_certain(realData, xml_path, clonal_tree)
+    # make_json_partial(realData, json_path, raxml_tree,gap_prob,normal_prob)
