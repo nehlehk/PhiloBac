@@ -16,8 +16,10 @@ rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
 repeat_range = Channel.value(1..3)
 recom_range = Channel.value(1..3)
 simulation = Channel.value(1)
-params.xml_file = "${PWD}/bin/template/GTR_template.xml"
-json_file = "${PWD}/bin/template/GTR_template.json"
+
+
+params.xml = "${PWD}/bin/template/GTR_template.xml"
+params.json = "${PWD}/bin/template/GTR_template.json"
 
 
 
@@ -28,10 +30,12 @@ params.recomlen = '100'
 params.recomrate = '0.02'
 params.tMRCA = '0.01'
 params.nu_sim = '0.05'
+params.best = false
+params.method = 'pb'
 params.sim_stat = 0 //0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes
 params.sim_fixed = 0 //0 for fixed number and fixed len of recombination and 1 for normal/random way making recombination events.
-// params.outDir = 'Results'
 params.seq = "/home/nehleh/PhyloCode/Result/Results_13092021/num_4/num_4_Wholegenome_4.fasta"
+// params.outDir = 'Results'
 // params.help = false
 
 
@@ -82,8 +86,6 @@ process MakeClonalTree {
 
      output:
          tuple val(repeat_range), path('Clonaltree.tree'), emit: Clonaltree
-//          val Genome , emit: Genome
-//          val repeat_range , emit: Range
      """
        make_clonaltree.py -n ${params.genome}  -t ${params.tMRCA}
      """
@@ -94,9 +96,7 @@ process BaciSim {
      maxForks 1
 
      input:
-//          val Genome
          tuple val(repeat_range), path('Clonaltree')
-//          val repeat_range
          each recom_range
 
 
@@ -156,14 +156,13 @@ process Get_raxml_tree {
 process Make_BaciSim_GapDel {
     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${repeat_range}/num_${repeat_range}_recom_${recom_range}_$filename" }
     maxForks 1
-    errorStrategy 'ignore'
+//     errorStrategy 'ignore'
 
     input:
         path Clonaltree
         path Wholegenome
         tuple val(repeat_range), val(recom_range), path('Recomlog')
         path MyRaxML
-        val repeat_range
 
      output:
         path 'Del_alignment.fasta' , emit: Del_alignment
@@ -176,7 +175,7 @@ process Make_BaciSim_GapDel {
         path 'BaciSim_partial.json' , emit: Partial_json
 
      """
-        BaciSim_GapDel.py -t ${Clonaltree} -a${Wholegenome}  -r${MyRaxML} -l${Recomlog} -x ${params.xml_file} -j ${params.json_file}
+        BaciSim_GapDel.py -t ${Clonaltree} -a${Wholegenome}  -r${MyRaxML} -l${Recomlog} -x ${params.xml} -j ${params.json}
 
      """
 }
@@ -258,7 +257,7 @@ process CFML_result {
 
      output:
         path 'CFML_Recombination.jpeg' , emit: CFMLFig
-//         path 'RMSE_CFML.csv' , emit : RMSE_CFML
+        path 'RMSE_CFML.csv' , emit : RMSE_CFML
 
      """
        CFML_result.py  -cl ${Clonaltree}  -a ${Wholegenome} -cfl ${CFML_recom}  -cft ${CFMLtree}  -rl ${Recomlog} -sim ${simulation}
@@ -302,7 +301,7 @@ process Gubbins_result {
 
     output:
         path 'Gubbins_Recombination.jpeg' , emit: GubbinsFig
-//         path 'RMSE_Gubbins.csv' , emit : Rmse_Gubbins
+        path 'RMSE_Gubbins.csv' , emit : Rmse_Gubbins
         path 'Gubbinstree_rescale.tree' , emit: GubbinsRescaletree
     """
      Gubbins_result.py  -cl ${Clonaltree} -a ${Wholegenome}  -rl ${Recomlog}  -gl ${GubbinsRecom} -gt ${Gubbinstree} -gs ${GubbinsStat} -sim ${simulation}
@@ -312,29 +311,24 @@ process Gubbins_result {
 
 
 workflow Sim {
-
-        MakeClonalTree(repeat_range)
-        BaciSim(MakeClonalTree.out.Clonaltree,recom_range)
-        Seq_gen(BaciSim.out.BaciSimtrees,frequencies,rates)
-
-        emit:
-          clonaltree = BaciSim.out.Clonaltree
-          genome = Seq_gen.out.Wholegenome
-          recom_log = BaciSim.out.Recomlog
-          iteration = BaciSim.out.Range
-          recomRange = BaciSim.out.RecomRange
-}
-
-workflow Rax {
         take:
-            genome
-            iteration
-            recomRange
+            repeat_range
+            recom_range
+            frequencies
+            rates
         main:
-            Get_raxml_tree(genome,iteration,recomRange)
+            MakeClonalTree(repeat_range)
+            BaciSim(MakeClonalTree.out.Clonaltree,recom_range)
+            Seq_gen(BaciSim.out.BaciSimtrees,frequencies,rates)
+
         emit:
-            raxml_tree = Get_raxml_tree.out.MyRaxML
+            clonaltree = BaciSim.out.Clonaltree
+            genome = Seq_gen.out.Wholegenome
+            recom_log = BaciSim.out.Recomlog
+            iteration = BaciSim.out.Range
+            recomRange = BaciSim.out.RecomRange
 }
+
 
 workflow Best {
         take:
@@ -345,12 +339,31 @@ workflow Best {
             iteration
             recomRange
         main:
-            Make_BaciSim_GapDel(clonaltree,genome,recom_log,raxml_tree,iteration)
+            Make_BaciSim_GapDel(clonaltree,genome,recom_log,raxml_tree)
             Get_raxml_tree_gap(Make_BaciSim_GapDel.out.Gap_alignment,iteration,recomRange)
             Get_raxml_tree_del(Make_BaciSim_GapDel.out.Del_alignment,iteration,recomRange)
 }
 
-workflow Benchmark {
+
+workflow Gubb {
+        take:
+            genome
+            clonaltree
+            recom_log
+            iteration
+            recomRange
+            simulation
+        main:
+            Gubbins(genome,iteration,recomRange)
+            Gubbins_result(clonaltree,recom_log,genome,Gubbins.out.Gubbinstree,Gubbins.out.GubbinsRecom,Gubbins.out.GubbinsStat,simulation)
+        emit:
+            RMSE_Gubbins = Gubbins_result.out.Rmse_Gubbins
+            GubbinsRescaletree = Gubbins_result.out.GubbinsRescaletree
+
+}
+
+
+workflow ClonalFrameML {
         take:
             genome
             clonaltree
@@ -362,13 +375,10 @@ workflow Benchmark {
         main:
             CFML(genome,raxml_tree,iteration,recomRange)
             CFML_result(genome,CFML.out.CFML_recom,CFML.out.CFMLtree,recom_log,clonaltree,simulation)
-            Gubbins(genome,iteration,recomRange)
-            Gubbins_result(clonaltree,recom_log,genome,Gubbins.out.Gubbinstree,Gubbins.out.GubbinsRecom,Gubbins.out.GubbinsStat,simulation)
         emit:
             CFMLtree = CFML.out.CFMLtree
-//             RMSE_CFML = CFML_result.out.RMSE_CFML
-//             RMSE_Gubbins = Gubbins_result.out.Rmse_Gubbins
-            GubbinsRescaletree = Gubbins_result.out.GubbinsRescaletree
+            RMSE_CFML = CFML_result.out.RMSE_CFML
+
 
 }
 
@@ -382,20 +392,21 @@ workflow {
     if (params.mode == 'sim') {
         println "Detect recombination in simulated data..."
         simulation = 1
-        Sim()
-        Rax(Sim.out.genome,Sim.out.iteration,Sim.out.recomRange)
+        Sim(repeat_range,recom_range,frequencies,rates)
+        Get_raxml_tree(Sim.out.genome,Sim.out.iteration,Sim.out.recomRange)
 
         if (params.best == true) {
-            Best(Sim.out.genome,Sim.out.clonaltree,Rax.out.raxml_tree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange)
+            Best(Sim.out.genome,Sim.out.clonaltree,Get_raxml_tree.out.MyRaxML,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange)
         }
-        if (params.method == 'cfml') {
-            Benchmark(Sim.out.genome,Sim.out.clonaltree,Rax.out.raxml_tree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange,simulation)
+
+        if (params.method =~ /cfml/) {
+            ClonalFrameML(Sim.out.genome,Sim.out.clonaltree,Get_raxml_tree.out.MyRaxML,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange,simulation)
         }
-        if (params.method == 'gub') {
-            Benchmark(Sim.out.genome,Sim.out.clonaltree,Rax.out.raxml_tree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange,simulation)
+        if (params.method =~ /gub/) {
+            Gubb(Sim.out.genome,Sim.out.clonaltree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange,simulation)
         }
-        if (params.method == 'pb') {
-            Benchmark(Sim.out.genome,Sim.out.clonaltree,Rax.out.raxml_tree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange,simulation)
+        if (params.method =~ /pb/) {
+
         }
     }
 
@@ -405,10 +416,19 @@ workflow {
         recom_log = tuple(1,1,dummy_file)
         clonaltree = dummy_file
         genome = params.seq
-        Rax(genome,1,1)
-        if (params.submode == 'bench') {
-            Benchmark(genome,clonaltree,Rax.out.raxml_tree,recom_log,1,1,simulation)
+
+        Get_raxml_tree(genome,1,1)
+
+        if (params.method == 'cfml') {
+            ClonalFrameML(genome,clonaltree,Get_raxml_tree.out.MyRaxML,recom_log,1,1,simulation)
         }
+        if (params.method == 'gub') {
+            Gubb(genome,clonaltree,recom_log,1,1,simulation)
+        }
+        if (params.method == 'pb') {
+
+        }
+
     }
 
 }
