@@ -279,5 +279,5 @@ if __name__ == "__main__":
     normal_prob = [0.1,0.1,0.1,0.1]
 
     make_xml_partial(realData, xml_path, clonal_tree,gap_prob,normal_prob)
-    # make_xml_partial_certain(realData, xml_path, clonal_tree)
+    make_xml_partial_certain(realData, xml_path, clonal_tree)
     # make_json_partial(realData, json_path, raxml_tree,gap_prob,normal_prob)

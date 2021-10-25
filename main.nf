@@ -13,8 +13,8 @@ c_file = file(params.test_file)
 // Genome = Channel.value(10)
 frequencies = Channel.value(' 0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
-iteration = Channel.value(1..10)
-recom_range = Channel.value(0..10)
+iteration = Channel.value(1..1)
+recom_range = Channel.value(1..1)
 simulation = Channel.value(1)
 
 
@@ -25,15 +25,15 @@ params.json = "${PWD}/bin/template/GTR_template.json"
 
 
 params.genome = 10
-params.genomelen = '100000'
+params.genomelen = '10000'
 params.recomlen = '600'
-params.recomrate = '0.02'
+params.recomrate = '0.01'
 params.tMRCA = '0.01'
 params.nu_sim = '0.05'
 params.best = false
 params.method = 'pb'
 params.sim_stat = 0 //0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes
-params.sim_fixed = 0 //0 for fixed number and fixed len of recombination and 1 for normal/random way making recombination events.
+params.sim_fixed = 1 //0 for fixed number and fixed len of recombination and 1 for normal/random way making recombination events.
 params.seq = "/home/nehleh/PhyloCode/Result/Results_13092021/num_4/num_4_Wholegenome_4.fasta"
 // params.outDir = 'Results'
 // params.help = false
@@ -439,6 +439,20 @@ workflow Beast {
             BeastNexus = NexusToNewick.out.BeastNewick
 }
 
+workflow Beast_cerain {
+        take:
+            xml_file
+            prefix
+            iteration
+            recomRange
+        main:
+            Run_Beast(xml_file,prefix,iteration,recomRange)
+            Treeannotator(Run_Beast.out.BeastOutput,prefix,iteration,recomRange)
+            NexusToNewick(Treeannotator.out.BeastNexus,prefix,iteration,recomRange)
+        emit:
+            BeastNexus = NexusToNewick.out.BeastNewick
+}
+
 
 
 workflow ClonalFrameML {
@@ -473,31 +487,31 @@ workflow {
 
         if (params.best == true) {
             Best(Sim.out.genome,Sim.out.clonaltree,Get_raxml_tree.out.MyRaxML,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange)
-//             Beast(Best.out.original,'original_',Sim.out.iteration,Sim.out.recomRange)
-            Beast(Best.out.original_partial_xml,'original_partial_',Sim.out.iteration,Sim.out.recomRange)
-//             Beast(Best.out.original_Gap,'original_gap_',Sim.out.iteration,Sim.out.recomRange)
+            Beast(Best.out.original,'original_',Sim.out.iteration,Sim.out.recomRange)
+//             Beast(Best.out.original_partial_xml,'original_partial_',Sim.out.iteration,Sim.out.recomRange)
+//             Beast_cerain(Best.out.original_certian_xml,'original_certain_',Sim.out.iteration,Sim.out.recomRange)
         }
-        if (params.method =~ /cfml/) {
-            ClonalFrameML(Sim.out.clonaltree,Sim.out.recom_log,Sim.out.genome,Get_raxml_tree.out.MyRaxML,Sim.out.iteration,Sim.out.recomRange,simulation)
-
-        }
-        if (params.method =~ /gub/) {
-            Gubbins(Sim.out.genome,Sim.out.clonaltree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange,simulation)
-        }
-        if (params.method =~ /pb/) {
-
-        }
-        if (params.analyse == 0)  {
-
-        }
-
-        if (params.analyse == 1)  {
-
-        }
-
-        if (params.analyse == 2)  {
-
-        }
+//         if (params.method =~ /cfml/) {
+//             ClonalFrameML(Sim.out.clonaltree,Sim.out.recom_log,Sim.out.genome,Get_raxml_tree.out.MyRaxML,Sim.out.iteration,Sim.out.recomRange,simulation)
+//
+//         }
+//         if (params.method =~ /gub/) {
+//             Gubbins(Sim.out.genome,Sim.out.clonaltree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange,simulation)
+//         }
+//         if (params.method =~ /pb/) {
+//
+//         }
+//         if (params.analyse == 0)  {
+//
+//         }
+//
+//         if (params.analyse == 1)  {
+//
+//         }
+//
+//         if (params.analyse == 2)  {
+//
+//         }
     }
 
      if (params.mode == 'emp') {
