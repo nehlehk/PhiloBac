@@ -8,8 +8,67 @@ import dendropy
 from sklearn.metrics import mean_squared_error
 from dendropy.simulate import treesim
 import csv
+import numpy.linalg as la
 
 
+
+
+
+class GTR_model:
+    def __init__(self, rates, pi):
+        self.rates = rates
+        self.pi = pi
+    #     ========================================================================
+    def get_pi(self):
+        return self.pi
+    #     ========================================================================
+    def p_matrix(self , br_length):
+        p = np.zeros((4, 4))
+
+        mu = 0
+        freq = np.zeros((4, 4))
+        q = np.zeros((4, 4))
+        sqrtPi = np.zeros((4, 4))
+        sqrtPiInv = np.zeros((4, 4))
+        exchang = np.zeros((4, 4))
+        s = np.zeros((4, 4))
+        fun = np.zeros(1)
+        a, b, c, d, e = self.rates
+        f = 1
+
+        freq = np.diag(self.pi)
+        sqrtPi = np.diag(np.sqrt(self.pi))
+        sqrtPiInv = np.diag(1.0 / np.sqrt(self.pi))
+        mu = 1 / (2 * ((a * self.pi[0] * self.pi[1]) + (b * self.pi[0] * self.pi[2]) + (c * self.pi[0] * self.pi[3]) + (d * self.pi[1] * self.pi[2]) + (
+                e * self.pi[1] * self.pi[3]) + (self.pi[2] * self.pi[3])))
+        exchang[0][1] = exchang[1][0] = a
+        exchang[0][2] = exchang[2][0] = b
+        exchang[0][3] = exchang[3][0] = c
+        exchang[1][2] = exchang[2][1] = d
+        exchang[1][3] = exchang[3][1] = e
+        exchang[2][3] = exchang[3][2] = f
+
+
+        q = np.multiply(np.dot(exchang, freq), mu)
+
+        for i in range(4):
+            q[i][i] = -sum(q[i][0:4])
+
+
+        s = np.dot(sqrtPi, np.dot(q, sqrtPiInv))
+
+
+        eigval, eigvec = la.eig(s)
+        eigvec_inv = la.inv(eigvec)
+
+        left = np.dot(sqrtPiInv, eigvec)
+        right = np.dot(eigvec_inv, sqrtPi)
+
+        p = np.dot(left, np.dot(np.diag(np.exp(eigval * br_length)), right))
+
+
+        return p
+# **********************************************************************************************************************
 def give_index(c):
     if c == "A":
         return 0
@@ -157,4 +216,17 @@ def my_mrca(tree,tips):
   myMrca = pdm.mrca(taxon[node0[0]], taxon[node1[0]])
 
   return myMrca.index
+# **********************************************************************************************************************
+def get_DNA_fromAlignment(alignment):
+
+    alignment_len = alignment.sequence_size
+    tips = len(alignment)
+    column = []
+    for l in range(alignment_len):
+        col = ""
+        for t in range(tips):
+            col += str(alignment[t][l])
+        column.append(col)
+
+    return column
 # **********************************************************************************************************************
