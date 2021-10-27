@@ -11,8 +11,21 @@ from utility import *
 from BCBio import GFF
 
 
+def set_index(tree):
+    for node in tree.postorder_node_iter():
+      node.index = -1
+      node.annotations.add_bound_attribute("index")
 
-
+    s = len(tree.leaf_nodes())
+    for node in tree.postorder_node_iter():
+      if not node.is_leaf():
+          node.index = s
+          node.label = str(node.index)
+          s += 1
+      else:
+          node.index = int(node.taxon.label)
+          node.label = str(node.index)
+# **********************************************************************************************************************
 def Gubbins_recombination(gubbins_log,gubbins_tree,nodes_number,alignment_len):
     starts = []
     ends = []
@@ -120,7 +133,7 @@ if __name__ == "__main__":
 
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
     gubbins_tree = Tree.get_from_path(gubb_tree, 'newick')
-    set_index(gubbins_tree,alignment)
+    set_index(gubbins_tree)
     nodes_num_g = len(gubbins_tree.nodes())
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
@@ -135,7 +148,7 @@ if __name__ == "__main__":
         baciSimLog = args.recomlogFile
         clonal_tree = Tree.get_from_path(clonal_path, 'newick')
         nodes_num_c = len(clonal_tree.nodes())
-        set_index(clonal_tree,alignment)
+        set_index(clonal_tree)
         realData = real_recombination(baciSimLog, clonal_tree, nodes_num_c, alignment_len, tips_num)
         rmse_real_CFML = mean_squared_error(realData, GubbData, squared=False)
         write_rmse(rmse_real_CFML, 'RMSE_Gubbins.csv')

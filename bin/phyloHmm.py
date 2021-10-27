@@ -726,18 +726,18 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
 # **********************************************************************************************************************
 if __name__ == "__main__":
 
-    # tree_path = '/home/nehleh/Desktop/examples/num_1/num_1_recom_1_RAxML_bestTree.tree'
-    # genomefile = '/home/nehleh/Desktop/examples/num_1/num_1_recom_1_Wholegenome_1_1.fasta'
-    # baciSimLog = '/home/nehleh/Desktop/examples/num_1/num_1_recom_1_BaciSim_Log.txt'
-    # clonal_path = '/home/nehleh/Desktop/examples/num_1/num_1_Clonaltree.tree'
+    tree_path = '/home/nehleh/Desktop/examples/num_1/num_1_recom_1_RAxML_bestTree.tree'
+    genomefile = '/home/nehleh/Desktop/examples/num_1/num_1_recom_1_Wholegenome_1_1.fasta'
+    baciSimLog = '/home/nehleh/Desktop/examples/num_1/num_1_recom_1_BaciSim_Log.txt'
+    clonal_path = '/home/nehleh/Desktop/examples/num_1/num_1_Clonaltree.tree'
 
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
-    parser.add_argument('-t', "--raxmltree", type=str, required= True, help='tree')
-    parser.add_argument('-a', "--alignmentFile", type=str, required= True , help='fasta file')
-    parser.add_argument('-cl', "--clonaltreeFile", type=str, help='clonalclonaltreeFile tree from BaciSim')
-    parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
+    # parser.add_argument('-t', "--raxmltree", type=str, required= True, help='tree')
+    # parser.add_argument('-a', "--alignmentFile", type=str, required= True , help='fasta file')
+    # parser.add_argument('-cl', "--clonaltreeFile", type=str, help='clonalclonaltreeFile tree from BaciSim')
+    # parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
     parser.add_argument('-nu', "--nuHmm", type=float,default=0.033,help='nuHmm')
     parser.add_argument('-p', "--threshold", type=float, default=0.9, help='threshold')
     parser.add_argument('-f', "--frequencies", type=list, default= [0.2184,0.2606,0.3265,0.1946],help='frequencies')
@@ -749,8 +749,8 @@ if __name__ == "__main__":
     parser.add_argument('-sim', "--simulation", type=int, default=1, help='1 for the simulation data and 0 for emprical sequence')
     args = parser.parse_args()
 
-    tree_path = args.raxmltree
-    genomefile = args.alignmentFile
+    # tree_path = args.raxmltree
+    # genomefile = args.alignmentFile
     pi = args.frequencies
     rates = args.rates
     nu = args.nuHmm
@@ -771,74 +771,73 @@ if __name__ == "__main__":
     GTR_sample = GTR_model(rates, pi)
     column = get_DNA_fromAlignment(alignment)
 
+    print(nodes_number)
+
     print(tree.as_ascii_plot(show_internal_node_labels=True))
-    for node in tree.postorder_node_iter():
-        # print(node.index)
-        if node.is_leaf():
-            print(node.index,node.taxon.label)
 
 
-    if initialstat.find('2') != -1:
-        status = 2
-        p_start = np.array([0.99, 0.01])
-        p_trans = np.array([[0.999, 0.001],
-                            [0.001, 0.999]])
-        print('status = 2')
-        tipdata, posterior, hiddenStates, score, recom_prob, r_node, t_node, best_nu = phylohmm(tree,alignment_len,column,nu, p_start, p_trans,tips_num,status)
-        c_tree = Tree.get_from_path(tree_path, 'newick')
-        set_index(c_tree,alignment)
-        internal_plot(c_tree, posterior, hiddenStates, score, r_node, t_node,status)
-        phyloHMMData2 = recom_resultFig_dm(recom_prob,tips_num,threshold,status,'PB_Recom_two.jpeg')
-        phyloHMM_log = phyloHMM_Log(c_tree, phyloHMMData2,'PB_Log_two.txt')
-        write_best_nu(best_nu,'PB_nu_two.txt')
-        # # # ======================================= providing xml files for beast ============================================
-        make_beast_xml_partial(tipdata, c_tree, xml_path,'PB_Partial_two.xml')
-        make_beast_xml_gap(tipdata, tree, xml_path, 0.5,'PB_Gap_two.xml')
-        make_beast_xml_delCol(recom_prob,tips_num,0.5,'PB_Del_two.xml')
-
-    #----------------------------------------------------------------------------------------------------------------------------------------------------
-    if initialstat.find('8') != -1:
-        status = 8
-        p_start = np.array([0.93, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01])
-        p_trans = np.array([[0.9993, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001],
-                            [0.0001, 0.9993, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001],
-                            [0.0001, 0.0001, 0.9993, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001],
-                            [0.0001, 0.0001, 0.0001, 0.9993, 0.0001, 0.0001, 0.0001, 0.0001],
-                            [0.0001, 0.0001, 0.0001, 0.0001, 0.9993, 0.0001, 0.0001, 0.0001],
-                            [0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.9993, 0.0001, 0.0001],
-                            [0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.9993, 0.0001],
-                            [0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.9993], ])
-
-        print('status = 8')
-
-        tipdata, posterior, hiddenStates, score, recom_prob, r_node, t_node, best_nu = phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status)
-        c_tree = Tree.get_from_path(tree_path, 'newick')
-        set_index(c_tree,alignment)
-        internal_plot(c_tree, posterior, hiddenStates, score, r_node, t_node, status)
-        phyloHMMData8 = recom_resultFig_dm(recom_prob,tips_num,threshold,status,'PB_Recom_eight.jpeg')
-        phyloHMM_log = phyloHMM_Log(c_tree, phyloHMMData8,'PB_Log_eight.txt')
-        write_best_nu(best_nu,'PB_nu_eight.txt')
-        # # ======================================= providing xml files for beast ============================================
-        make_beast_xml_partial(tipdata, c_tree, xml_path,'PB_Partial_eight.xml')
-        make_beast_xml_gap(tipdata, tree, xml_path, 0.5,'PB_Gap_eight.xml')
-        make_beast_xml_delCol(recom_prob,tips_num,0.5,'PB_Del_eight.xml')
+    # if initialstat.find('2') != -1:
+    #     status = 2
+    #     p_start = np.array([0.99, 0.01])
+    #     p_trans = np.array([[0.999, 0.001],
+    #                         [0.001, 0.999]])
+    #     print('status = 2')
+    #     tipdata, posterior, hiddenStates, score, recom_prob, r_node, t_node, best_nu = phylohmm(tree,alignment_len,column,nu, p_start, p_trans,tips_num,status)
+    #     c_tree = Tree.get_from_path(tree_path, 'newick')
+    #     set_index(c_tree,alignment)
+    #     internal_plot(c_tree, posterior, hiddenStates, score, r_node, t_node,status)
+    #     phyloHMMData2 = recom_resultFig_dm(recom_prob,tips_num,threshold,status,'PB_Recom_two.jpeg')
+    #     phyloHMM_log = phyloHMM_Log(c_tree, phyloHMMData2,'PB_Log_two.txt')
+    #     write_best_nu(best_nu,'PB_nu_two.txt')
+    #     # # # ======================================= providing xml files for beast ============================================
+    #     make_beast_xml_partial(tipdata, c_tree, xml_path,'PB_Partial_two.xml')
+    #     make_beast_xml_gap(tipdata, tree, xml_path, 0.5,'PB_Gap_two.xml')
+    #     make_beast_xml_delCol(recom_prob,tips_num,0.5,'PB_Del_two.xml')
+    #
+    # #----------------------------------------------------------------------------------------------------------------------------------------------------
+    # if initialstat.find('8') != -1:
+    #     status = 8
+    #     p_start = np.array([0.93, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01])
+    #     p_trans = np.array([[0.9993, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001],
+    #                         [0.0001, 0.9993, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001],
+    #                         [0.0001, 0.0001, 0.9993, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001],
+    #                         [0.0001, 0.0001, 0.0001, 0.9993, 0.0001, 0.0001, 0.0001, 0.0001],
+    #                         [0.0001, 0.0001, 0.0001, 0.0001, 0.9993, 0.0001, 0.0001, 0.0001],
+    #                         [0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.9993, 0.0001, 0.0001],
+    #                         [0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.9993, 0.0001],
+    #                         [0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.9993], ])
+    #
+    #     print('status = 8')
+    #
+    #     tipdata, posterior, hiddenStates, score, recom_prob, r_node, t_node, best_nu = phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status)
+    #     c_tree = Tree.get_from_path(tree_path, 'newick')
+    #     set_index(c_tree,alignment)
+    #     internal_plot(c_tree, posterior, hiddenStates, score, r_node, t_node, status)
+    #     phyloHMMData8 = recom_resultFig_dm(recom_prob,tips_num,threshold,status,'PB_Recom_eight.jpeg')
+    #     phyloHMM_log = phyloHMM_Log(c_tree, phyloHMMData8,'PB_Log_eight.txt')
+    #     write_best_nu(best_nu,'PB_nu_eight.txt')
+    #     # # ======================================= providing xml files for beast ============================================
+    #     make_beast_xml_partial(tipdata, c_tree, xml_path,'PB_Partial_eight.xml')
+    #     make_beast_xml_gap(tipdata, tree, xml_path, 0.5,'PB_Gap_eight.xml')
+    #     make_beast_xml_delCol(recom_prob,tips_num,0.5,'PB_Del_eight.xml')
 
 
 
 
     if simulation == 1 :
-        clonal_path = args.clonaltreeFile
-        baciSimLog = args.recomlogFile
+        # clonal_path = args.clonaltreeFile
+        # baciSimLog = args.recomlogFile
         clonal_tree = Tree.get_from_path(clonal_path, 'newick')
-        nodes_number = len(clonal_tree.nodes())
+        nodes_number_c = len(clonal_tree.nodes())
+        print(nodes_number_c)
         set_index(clonal_tree,alignment)
-        realData = real_recombination(baciSimLog, clonal_tree, nodes_number, alignment_len, tips_num)
+        realData = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
         print(realData.shape)
-        if initialstat.find('2') != -1:
-            print(phyloHMMData2.shape)
-            # rmse_real_philo2 = mean_squared_error(realData,phyloHMMData2,squared=False)
-            # write_rmse(rmse_real_philo2, 'PB_RMSE_two.csv')
-        if initialstat.find('8') != -1:
-            print(phyloHMMData8.shape)
-            # rmse_real_philo8 = mean_squared_error(realData,phyloHMMData8,squared=False)
-            # write_rmse(rmse_real_philo8, 'PB_RMSE_eight.csv')
+        # if initialstat.find('2') != -1:
+        #     print(phyloHMMData2.shape)
+        #     # rmse_real_philo2 = mean_squared_error(realData,phyloHMMData2,squared=False)
+        #     # write_rmse(rmse_real_philo2, 'PB_RMSE_two.csv')
+        # if initialstat.find('8') != -1:
+        #     print(phyloHMMData8.shape)
+        #     # rmse_real_philo8 = mean_squared_error(realData,phyloHMMData8,squared=False)
+        #     # write_rmse(rmse_real_philo8, 'PB_RMSE_eight.csv')

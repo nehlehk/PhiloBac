@@ -103,9 +103,9 @@ if __name__ == "__main__":
         clonal_path = args.clonaltreeFile
         baciSimLog = args.recomlogFile
         clonal_tree = Tree.get_from_path(clonal_path, 'newick')
-        nodes_number = len(clonal_tree.nodes())
+        nodes_number_c = len(clonal_tree.nodes())
         set_index(clonal_tree,alignment)
-        realData = real_recombination(baciSimLog, clonal_tree, nodes_number, alignment_len, tips_num)
+        realData = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
         rmse_real_CFML = mean_squared_error(realData, CFMLData, squared=False)
         write_rmse(rmse_real_CFML, 'RMSE_CFML.csv')
 
