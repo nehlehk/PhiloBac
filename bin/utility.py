@@ -79,20 +79,25 @@ def give_index(c):
     elif c == "T":
         return 3
 # **********************************************************************************************************************
-def set_index(tree):
-    for node in tree.postorder_node_iter():
-      node.index = -1
-      node.annotations.add_bound_attribute("index")
+def set_index(tree, dna):
+    sequence_count = len(dna)
 
-    s = len(tree.leaf_nodes())
     for node in tree.postorder_node_iter():
-      if not node.is_leaf():
-          node.index = s
-          node.label = str(node.index)
-          s += 1
-      else:
-          node.index = node.taxon.label
-          node.label = str(node.index)
+        node.index = -1
+        node.annotations.add_bound_attribute("index")
+
+    s = sequence_count
+    for node in tree.postorder_node_iter():
+        if not node.is_leaf():
+            node.index = s
+            node.label = str(node.index)
+            s += 1
+        else:
+            for idx, name in enumerate(dna):
+                if str(name) == str(node.taxon):
+                    node.index = idx
+                    node.label = str(node.index)
+                    break
 # **********************************************************************************************************************
 def set_label(tree):
     for node in tree.postorder_node_iter():

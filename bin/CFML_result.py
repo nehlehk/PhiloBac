@@ -95,7 +95,7 @@ if __name__ == "__main__":
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
-    set_index(cfml_tree)
+    set_index(cfml_tree,alignment)
     CFMLData = CFML_recombination(cfml_log,cfml_tree,tips_num)
     CFML_resultFig(cfml_tree, CFMLData)
 
@@ -104,7 +104,7 @@ if __name__ == "__main__":
         baciSimLog = args.recomlogFile
         clonal_tree = Tree.get_from_path(clonal_path, 'newick')
         nodes_number = len(clonal_tree.nodes())
-        set_index(clonal_tree)
+        set_index(clonal_tree,alignment)
         realData = real_recombination(baciSimLog, clonal_tree, nodes_number, alignment_len, tips_num)
         rmse_real_CFML = mean_squared_error(realData, CFMLData, squared=False)
         write_rmse(rmse_real_CFML, 'RMSE_CFML.csv')

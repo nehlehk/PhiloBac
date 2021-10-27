@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
     gubbins_tree = Tree.get_from_path(gubb_tree, 'newick')
-    set_index(gubbins_tree)
+    set_index(gubbins_tree,alignment)
     nodes_num_g = len(gubbins_tree.nodes())
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
@@ -135,7 +135,7 @@ if __name__ == "__main__":
         baciSimLog = args.recomlogFile
         clonal_tree = Tree.get_from_path(clonal_path, 'newick')
         nodes_num_c = len(clonal_tree.nodes())
-        set_index(clonal_tree)
+        set_index(clonal_tree,alignment)
         realData = real_recombination(baciSimLog, clonal_tree, nodes_num_c, alignment_len, tips_num)
         rmse_real_CFML = mean_squared_error(realData, GubbData, squared=False)
         write_rmse(rmse_real_CFML, 'RMSE_Gubbins.csv')

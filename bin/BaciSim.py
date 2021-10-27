@@ -15,7 +15,21 @@ import os.path
 
 
 
+def set_index(tree):
+    for node in tree.postorder_node_iter():
+      node.index = -1
+      node.annotations.add_bound_attribute("index")
 
+    s = len(tree.leaf_nodes())
+    for node in tree.postorder_node_iter():
+      if not node.is_leaf():
+          node.index = s
+          node.label = str(node.index)
+          s += 1
+      else:
+          node.index = int(node.taxon.label)
+          node.label = str(node.index)
+# **********************************************************************************************************************
 def give_recom_num(tree,recom_rate,alignment_len):
     # Poisson( tree.sum() * rel_recomb_rate_per_site * alignment_length)
     recom_num =  np.random.poisson(tree.length() * recom_rate * alignment_len)

@@ -260,8 +260,8 @@ if __name__ == "__main__":
 
 
     alignment_len = alignment.sequence_size
-    set_index(clonal_tree)
-    set_index(raxml_tree)
+    set_index(clonal_tree,alignment)
+    set_index(raxml_tree,alignment)
 
     # print(clonal_tree.as_ascii_plot(show_internal_node_labels=True))
 
@@ -273,11 +273,11 @@ if __name__ == "__main__":
 
     make_xml_seq(xml_path,clonal_tree)
     make_xml_gap(realData, xml_path, clonal_tree)
-    # make_xml_del(realData, xml_path, clonal_tree)
+    make_xml_del(realData, xml_path, clonal_tree)
 
-    gap_prob = [0.9,0.9,0.9,0.9]
-    normal_prob = [0.1,0.1,0.1,0.1]
+    gap_prob = [0.99,0.99,0.99,0.99]
+    normal_prob = [0.001,0.001,0.001,0.001]
 
     make_xml_partial(realData, xml_path, clonal_tree,gap_prob,normal_prob)
-    make_xml_partial_certain(realData, xml_path, clonal_tree)
+    # make_xml_partial_certain(realData, xml_path, clonal_tree)
     # make_json_partial(realData, json_path, raxml_tree,gap_prob,normal_prob)
