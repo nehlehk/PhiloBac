@@ -14,26 +14,25 @@ c_file = file(params.test_file)
 frequencies = Channel.value(' 0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
 iteration = Channel.value(1..1)
-recom_range = Channel.value(1..1)
-simulation = Channel.value(1)
+recom_range = Channel.value(1)
 
 
 params.xml = "${PWD}/bin/template/GTR_template.xml"
 params.json = "${PWD}/bin/template/GTR_template.json"
 
 
-
-
 params.genome = 10
-params.genomelen = '10000'
-params.recomlen = '600'
-params.recomrate = '0.01'
+params.genomelen = '5000'
+params.recomlen = '500'
+params.recomrate = '0.02'
 params.tMRCA = '0.01'
 params.nu_sim = '0.05'
 params.best = false
 params.method = 'pb'
+params.hmm_state = '2,8'
+params.nu_hmm = 0.033
 params.sim_stat = 0 //0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes
-params.sim_fixed = 1 //0 for fixed number and fixed len of recombination and 1 for normal/random way making recombination events.
+params.sim_fixed = 0 //0 for fixed number and fixed len of recombination and 1 for normal/random way making recombination events.
 params.seq = "/home/nehleh/PhyloCode/Result/Results_13092021/num_4/num_4_Wholegenome_4.fasta"
 // params.outDir = 'Results'
 // params.help = false
@@ -153,6 +152,39 @@ process Get_raxml_tree {
     """
 }
 
+process PhiloBacteria {
+     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_recom_${recom_range}_$filename" }
+     maxForks 1
+//      errorStrategy 'ignore'
+
+     input:
+        path Clonaltree
+        tuple val(iteration), val(recom_range), path('Recomlog')
+        path Wholegenome
+        path MyRaxML
+
+     output:
+        path 'PB_Partial_two.xml'   , emit: PB_Partial_two   , optional: true
+        path 'PB_Gap_two.xml'       , emit: PB_Gap_two       , optional: true
+        path 'PB_Del_two.xml'       , emit: PB_Del_two       , optional: true
+        path 'PB_RMSE_two.csv'      , emit :PB_RMSE_two      , optional: true
+        path 'PB_Recom_two.jpeg'    , emit: PB_Recom_two     , optional: true
+        path 'PB_Log_two.txt'       , emit: PB_Log_two       , optional: true
+        path 'PB_nu_two.txt'        , emit: PB_nu_two        , optional: true
+        path 'PB_Partial_eight.xml' , emit: PB_Partial_eight , optional: true
+        path 'PB_Gap_eight.xml'     , emit: PB_Gap_eight     , optional: true
+        path 'PB_Del_eight.xml'     , emit: PB_Del_eight     , optional: true
+        path 'PB_RMSE_eight.csv'    , emit: PB_RMSE_eight    , optional: true
+        path 'PB_Recom_eight.jpeg'  , emit: PB_Recom_eight   , optional: true
+        path 'PB_Log_eight.txt'     , emit: PB_Log_eight     , optional: true
+        path 'PB_nu_eight.txt'      , emit: PB_nu_eight      , optional: true
+
+     """
+       phyloHmm.py -t ${MyRaxML}  -a ${Wholegenome}  -cl ${Clonaltree} -rl ${Recomlog} -nu ${params.nu_hmm} -st ${params.hmm_state} -xml ${params.xml} -sim ${params.simulation}
+
+     """
+}
+
 process Make_BaciSim_GapDel {
     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_recom_${recom_range}_$filename" }
     maxForks 1
@@ -253,14 +285,13 @@ process CFML_result {
         path CFMLtree
         tuple val(iteration),val(recom_range), path('Recomlog')
         path Clonaltree
-        val simulation
 
      output:
         path 'CFML_Recombination.jpeg' , emit: CFMLFig
         path 'RMSE_CFML.csv' , emit : RMSE_CFML , optional: true
 
      """
-       CFML_result.py  -cl ${Clonaltree}  -a ${Wholegenome} -cfl ${CFML_recom}  -cft ${CFMLtree}  -rl ${Recomlog} -sim ${simulation}
+       CFML_result.py  -cl ${Clonaltree}  -a ${Wholegenome} -cfl ${CFML_recom}  -cft ${CFMLtree}  -rl ${Recomlog} -sim ${params.simulation}
 
 
      """
@@ -297,14 +328,13 @@ process Gubbins_result {
         path Gubbinstree
         path GubbinsRecom
         path GubbinsStat
-        val simulation
 
     output:
         path 'Gubbins_Recombination.jpeg' , emit: GubbinsFig
         path 'RMSE_Gubbins.csv' , emit : Rmse_Gubbins, optional: true
         path 'Gubbinstree_rescale.tree' , emit: GubbinsRescaletree
     """
-     Gubbins_result.py  -cl ${Clonaltree} -a ${Wholegenome}  -rl ${Recomlog}  -gl ${GubbinsRecom} -gt ${Gubbinstree} -gs ${GubbinsStat} -sim ${simulation}
+     Gubbins_result.py  -cl ${Clonaltree} -a ${Wholegenome}  -rl ${Recomlog}  -gl ${GubbinsRecom} -gt ${Gubbinstree} -gs ${GubbinsStat} -sim ${params.simulation}
     """
 }
 
@@ -415,10 +445,9 @@ workflow Gubbins {
             recom_log
             iteration
             recomRange
-            simulation
         main:
             Run_Gubbins(genome,iteration,recomRange)
-            Gubbins_result(clonaltree,recom_log,genome,Run_Gubbins.out.Gubbinstree,Run_Gubbins.out.GubbinsRecom,Run_Gubbins.out.GubbinsStat,simulation)
+            Gubbins_result(clonaltree,recom_log,genome,Run_Gubbins.out.Gubbinstree,Run_Gubbins.out.GubbinsRecom,Run_Gubbins.out.GubbinsStat)
         emit:
             RMSE_Gubbins = Gubbins_result.out.Rmse_Gubbins
             GubbinsRescaletree = Gubbins_result.out.GubbinsRescaletree
@@ -463,10 +492,10 @@ workflow ClonalFrameML {
             raxml_tree
             iteration
             recomRange
-            simulation
+
         main:
             CFML(genome,raxml_tree,iteration,recomRange)
-            CFML_result(genome,CFML.out.CFML_recom,CFML.out.CFMLtree,recom_log,clonaltree,simulation)
+            CFML_result(genome,CFML.out.CFML_recom,CFML.out.CFMLtree,recom_log,clonaltree)
         emit:
             CFMLtree = CFML.out.CFMLtree
             RMSE_CFML = CFML_result.out.RMSE_CFML
@@ -481,26 +510,25 @@ workflow {
     }
     if (params.mode == 'sim') {
         println "Detect recombination in simulated data..."
-        simulation = 1
+        params.simulation = 1
         Sim(iteration,recom_range,frequencies,rates)
         Get_raxml_tree(Sim.out.genome,Sim.out.iteration,Sim.out.recomRange)
 
         if (params.best == true) {
             Best(Sim.out.genome,Sim.out.clonaltree,Get_raxml_tree.out.MyRaxML,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange)
-            Beast(Best.out.original,'original_',Sim.out.iteration,Sim.out.recomRange)
-//             Beast(Best.out.original_partial_xml,'original_partial_',Sim.out.iteration,Sim.out.recomRange)
-//             Beast_cerain(Best.out.original_certian_xml,'original_certain_',Sim.out.iteration,Sim.out.recomRange)
+//             Beast(Best.out.original,'original_',Sim.out.iteration,Sim.out.recomRange)
+            Beast(Best.out.original_partial_xml,'original_partial_',Sim.out.iteration,Sim.out.recomRange)
+            Beast_cerain(Best.out.original_Gap_xml,'original_gap_',Sim.out.iteration,Sim.out.recomRange)
         }
-//         if (params.method =~ /cfml/) {
-//             ClonalFrameML(Sim.out.clonaltree,Sim.out.recom_log,Sim.out.genome,Get_raxml_tree.out.MyRaxML,Sim.out.iteration,Sim.out.recomRange,simulation)
-//
-//         }
-//         if (params.method =~ /gub/) {
-//             Gubbins(Sim.out.genome,Sim.out.clonaltree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange,simulation)
-//         }
-//         if (params.method =~ /pb/) {
-//
-//         }
+        if (params.method =~ /cfml/) {
+            ClonalFrameML(Sim.out.clonaltree,Sim.out.recom_log,Sim.out.genome,Get_raxml_tree.out.MyRaxML,Sim.out.iteration,Sim.out.recomRange)
+        }
+        if (params.method =~ /gub/) {
+            Gubbins(Sim.out.genome,Sim.out.clonaltree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange)
+        }
+        if (params.method =~ /pb/) {
+            PhiloBacteria(Sim.out.clonaltree,Sim.out.recom_log,Sim.out.genome,Get_raxml_tree.out.MyRaxML)
+        }
 //         if (params.analyse == 0)  {
 //
 //         }
@@ -516,7 +544,7 @@ workflow {
 
      if (params.mode == 'emp') {
         println "Detect recombination in empirical sequence alignments..."
-        simulation = 0
+        params.simulation = 0
         recom_log = tuple(1,1,dummy_file)
         clonaltree = dummy_file
         genome = params.seq
@@ -524,10 +552,10 @@ workflow {
         Get_raxml_tree(genome,1,1)
 
         if (params.method == 'cfml') {
-            ClonalFrameML(clonaltree,recom_log,genome,Get_raxml_tree.out.MyRaxML,1,1,simulation)
+            ClonalFrameML(clonaltree,recom_log,genome,Get_raxml_tree.out.MyRaxML,1,1)
         }
         if (params.method == 'gub') {
-            Gubbins(genome,clonaltree,recom_log,1,1,simulation)
+            Gubbins(genome,clonaltree,recom_log,1,1)
         }
         if (params.method == 'pb') {
 
