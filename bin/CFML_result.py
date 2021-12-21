@@ -69,11 +69,11 @@ def CFML_recombination(CFML_recomLog,cfml_tree,tips_num):
 
 
 if __name__ == "__main__":
-    # clonal_path = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_Clonaltree.tree'
-    # cfml_log = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_CFML.importation_status.txt'
-    # cfml_tree = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_CFML.labelled_tree.newick'
-    # genomefile = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_Wholegenome_1_1.fasta'
-    # baciSimLog = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_BaciSim_Log.txt'
+    # genomefile = '/home/nehleh/Desktop/examples/num_1/num_1_recom_1_Wholegenome_1_1.fasta'
+    # baciSimLog = '/home/nehleh/Desktop/examples/num_1/num_1_recom_1_BaciSim_Log.txt'
+    # clonal_path = '/home/nehleh/Desktop/examples/num_1/num_1_Clonaltree.tree'
+    # cfml_log = '/home/nehleh/Desktop/examples/num_1/num_1_recom_1_CFML.importation_status.txt'
+    # cfml_tree = '/home/nehleh/Desktop/examples/num_1/num_1_recom_1_CFML.labelled_tree.newick'
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
     parser.add_argument('-cl', "--clonaltreeFile", type=str, help='tree')
@@ -98,6 +98,8 @@ if __name__ == "__main__":
     set_index(cfml_tree,alignment)
     CFMLData = CFML_recombination(cfml_log,cfml_tree,tips_num)
     CFML_resultFig(cfml_tree, CFMLData)
+    print(nodes_number)
+    print(cfml_tree.as_ascii_plot(show_internal_node_labels=True))
 
     if simulation == 1 :
         clonal_path = args.clonaltreeFile
@@ -108,6 +110,8 @@ if __name__ == "__main__":
         realData = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
         rmse_real_CFML = mean_squared_error(realData, CFMLData, squared=False)
         write_rmse(rmse_real_CFML, 'RMSE_CFML.csv')
+        print(nodes_number_c)
+        print(clonal_tree.as_ascii_plot(show_internal_node_labels=True))
 
 
 
