@@ -108,13 +108,14 @@ def compute_logprob_phylo(X,recom_trees,model,child_order,X_child_order,status):
         for i in range(0, len(children)):
             order = X_child_order.index(child_order[i])
             matrix = model.p_matrix(children[i].edge_length)
-            for site_id in range(n):
-                p[site_id,:] *= np.dot(matrix, X[site_id,order * 4:(order + 1) * 4])
+            p *= [np.dot(matrix, X[i, order * 4:(order + 1) * 4]) for i in range(n)]
+            # for site_id in range(n):
+            #     p[site_id,:] *= np.dot(matrix, X[site_id,order * 4:(order + 1) * 4])
         site_l = np.dot(p, model.get_pi())
         result[:, tree_id] = np.log(site_l)
 
     # print("optimized:")
-    # print(result[115])
+    # print(result[0])
 
 
 
@@ -189,7 +190,7 @@ def compute_logprob_phylo(X,recom_trees,model,child_order,X_child_order,status):
     #         # print(site_l)
     #         result[site_id, tree_id] = np.log(site_l)
     # print("normal:")
-    # print(result[115])
+    # print(result[0])
     return result
 # **********************************************************************************************************************
 def make_beast_xml_partial(tipdata,tree,xml_path,outputname):
@@ -654,7 +655,7 @@ def give_best_nu(X,my_nu,tree_path,clonal,target_node,X_child_order,status):
         # print(result1)
         # print(result1.x)
 
-        result2 = spo.minimize_scalar(fn2, method="bounded", bounds=(0, 0.09) , options={'disp': 1})
+        result2 = spo.minimize_scalar(fn2, method="bounded", bounds=(0, 0.09) , options={'disp': 1}) #bounded
         best_nu.append(result2.x)
         # print(result2)
         # print(result2.x)
@@ -747,7 +748,7 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
         for id, child in enumerate(target_node.child_node_iter()):
             X_child_order.append(child.index)
 
-        my_nu = np.arange(0.00001, 0.11, 0.01)
+        my_nu = np.arange(0.001, 0.11, 0.01)
         # my_nu = Bounds([0], [1])
         if status == 2 :
             # -------------- find best nu ----------------------
@@ -785,9 +786,9 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
                 model = phyloLL_HMM(n_components=status, trees=[recombination_trees[0], recombination_trees[h]],model=GTR_sample, child_order=child_order, X_child_order=X_child_order)
                 model.startprob_ = p_start
 
-                # p_trans_nu0 = np.array([[1, 0],
-                #                         [1, 0]])
-                #
+                p_trans_nu0 = np.array([[1, 0],
+                                        [1, 0]])
+
                 # if nu[h-1] <= my_nu[0]:
                 #     model.transmat_ = p_trans_nu0
                 # else:
