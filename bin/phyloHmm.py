@@ -108,7 +108,7 @@ def compute_logprob_phylo(X,recom_trees,model,child_order,X_child_order,status):
         for i in range(0, len(children)):
             order = X_child_order.index(child_order[i])
             matrix = model.p_matrix(children[i].edge_length)
-            p *= [np.dot(matrix, X[i, order * 4:(order + 1) * 4]) for i in range(n)]
+            p *= [np.dot(matrix, X[site_id, order * 4:(order + 1) * 4]) for site_id in range(n)]
             # for site_id in range(n):
             #     p[site_id,:] *= np.dot(matrix, X[site_id,order * 4:(order + 1) * 4])
         site_l = np.dot(p, model.get_pi())
