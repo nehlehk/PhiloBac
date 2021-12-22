@@ -97,100 +97,20 @@ class phyloLL_HMM(hmmlearn.base._BaseHMM):
         super()._do_mstep(stats)
 
 # **********************************************************************************************************************
-def compute_logprob_phylo(X,recom_trees,model,child_order,X_child_order,status):
+def compute_logprob_phylo(X, recom_trees, model, child_order, X_child_order,
+                           status):
     n, dim = X.shape
     result = np.zeros((n, len(recom_trees)))
+    XX = np.transpose(X.reshape((X.shape[0], 3, 4)), (0, 2, 1))
 
     for tree_id, item in enumerate(recom_trees):
         state_tree = dendropy.Tree.get(data=item, schema="newick")
         children = state_tree.seed_node.child_nodes()
-        p = np.ones((n,4))
-        for i in range(0, len(children)):
-            order = X_child_order.index(child_order[i])
-            matrix = model.p_matrix(children[i].edge_length)
-            p *= [np.dot(matrix, X[site_id, order * 4:(order + 1) * 4]) for site_id in range(n)]
-            # for site_id in range(n):
-            #     p[site_id,:] *= np.dot(matrix, X[site_id,order * 4:(order + 1) * 4])
-        site_l = np.dot(p, model.get_pi())
-        result[:, tree_id] = np.log(site_l)
-
-    # print("optimized:")
-    # print(result[0])
-
-
-
-        # for site_id, partial in enumerate(X):
-        #     print(partial)
-        #     # print(site_id)
-        #     # order = child_order.index(X_child_order[tree_id * len(children)])
-        #     for i in range(0, len(children)):
-        #         if status == 2:
-        #             order = X_child_order.index(child_order[i])
-        #         if status == 8:
-        #             if tree_id == 0:
-        #                 order = child_order.index(X_child_order[0])
-        #             else:
-        #                 order = X_child_order.index(child_order[0])
-                # indices[i].append((order * 4 : (order + 1) * 4]))
-                # indices[i].append([(str(order * 4) +":"+ str((order + 1) * 4))])
-                # temp = {order * 4 :(order + 1) * 4}
-                # print(temp)
-                # indices[i].append((list(temp.items())))
-                # indices[i].append([order * 4 + i for i in range(4)])
-            # print(indices[0])
-            # print("one")
-            # print(indices[0][:])
-            # print("two")
-            # print(indices[0])
-        # temp = [partial[index] for index in indices[0]]
-        # print(temp[10000])
-
-
-        # p = np.ones(4)
-        # for i in range(0, len(children)):
-        #     # p *= np.dot(model.p_matrix(children[i].edge_length), temp)
-        #     temp = [partial[index] for index in indices[i]]
-        #     p *= np.dot(model.p_matrix(children[i].edge_length), temp)
-        #     # p *= np.dot(model.p_matrix(children[i].edge_length), partial[indices[i]])
-        # site_l = np.dot(p, model.get_pi())
-        # result[site_id, tree_id] = np.log(site_l)
-
-
-    # n, dim = X.shape
-    # result = np.zeros((n, len(recom_trees)))
-    # for tree_id, item in enumerate(recom_trees):
-    #     state_tree = dendropy.Tree.get(data=item, schema="newick")
-    #     children = state_tree.seed_node.child_nodes()
-    #     # print(children)
-    #     for site_id, partial in enumerate(X):
-    #         # order = child_order.index(X_child_order[tree_id * len(children)])
-    #         if status == 2:
-    #             order = X_child_order.index(child_order[0])
-    #         if status == 8:
-    #             if tree_id == 0:
-    #                 order = child_order.index(X_child_order[0])
-    #             else:
-    #                 order = X_child_order.index(child_order[0])
-    #         p = np.zeros(4)
-    #         p = np.dot(model.p_matrix(children[0].edge_length), partial[order * 4:(order + 1) * 4])
-    #         # print("p:")
-    #         # print(p)
-    #         for i in range(1, len(children)):
-    #             # order = child_order.index(X_child_order[(tree_id* len(children)) + i])
-    #             if status == 2:
-    #                 order = X_child_order.index(child_order[i])
-    #             if status == 8:
-    #                 if tree_id == 0:
-    #                     order = child_order.index(X_child_order[0])
-    #                 else:
-    #                     order = X_child_order.index(child_order[0])
-    #             p *= np.dot(model.p_matrix(children[i].edge_length), partial[order * 4:(order + 1) * 4])
-    #         site_l = np.dot(p, model.get_pi())
-    #         # print("site_l:")
-    #         # print(site_l)
-    #         result[site_id, tree_id] = np.log(site_l)
-    # print("normal:")
-    # print(result[0])
+        orders = [X_child_order.index(child_order[i]) for i in range(len(children))]
+        branch_lengths = np.array(
+            [children[i].edge_length for i in range(len(children))])
+        matrices = model.p_t(branch_lengths)
+        result[:, tree_id] = np.log(model.get_pi() @ (matrices @ XX[..., orders].T).prod(0))
     return result
 # **********************************************************************************************************************
 def make_beast_xml_partial(tipdata,tree,xml_path,outputname):

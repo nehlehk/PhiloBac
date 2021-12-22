@@ -68,6 +68,28 @@ class GTR_model:
 
 
         return p
+
+    def p_t(self, br_length):
+        blens = np.expand_dims(br_length, -1)
+        rates = np.concatenate((self.rates, np.array([1.0])))
+        exchang = np.zeros((4, 4))
+        sqrtPi = np.diag(np.sqrt(self.pi))
+        sqrtPiInv = np.diag(1.0 / np.sqrt(self.pi))
+        iu = np.triu_indices(4, 1)
+        exchang[np.triu_indices(4, 1)] = exchang[iu[1], iu[0]] = rates
+        exchang = np.dot(exchang, np.diag(self.pi))
+        exchang[range(4), range(4)] = -exchang.sum(-1)
+        exchang = -exchang/np.sum(exchang.diagonal()*self.pi)
+        s = np.dot(sqrtPi, np.dot(exchang, sqrtPiInv))
+
+        eigval, eigvec = la.eig(s)
+        eigvec_inv = la.inv(eigvec)
+
+        left = np.dot(sqrtPiInv, eigvec)
+        right = np.dot(eigvec_inv, sqrtPi)
+        return left @ (np.expand_dims(np.exp(eigval * blens), 1)*np.eye(4)) @ right
+
+
 # **********************************************************************************************************************
 def give_index(c):
     if c == "A":

@@ -1,0 +1,13 @@
+name: philobacteria
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - numpy
+  - hmmlearn
+  - scipy
+  - matplotlib
+  - dendropy
+  - sklearn
+  - pandas
