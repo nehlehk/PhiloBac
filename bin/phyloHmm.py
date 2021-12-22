@@ -18,6 +18,7 @@ import json
 import ast
 import scipy.optimize as spo
 from scipy.optimize import Bounds
+import os
 
 
 
@@ -750,9 +751,9 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
         # my_nu = Bounds([0], [1])
         if status == 2 :
             # -------------- find best nu ----------------------
-            nu = give_best_nu(X, my_nu, tree_path, recombination_trees[0], target_node, X_child_order,status)
+            # nu = give_best_nu(X, my_nu, tree_path, recombination_trees[0], target_node, X_child_order,status)
             # print(nu)
-            best_nu.append([target_node.index, nu])
+            # best_nu.append([target_node.index, nu])
             # nu = nu[id_tree]
             # ----------- Step 2: make recombination trees -----------------------------------------------
 
@@ -774,8 +775,8 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
                 target_node_temp = temptree.find_node(filter_fn=filter_fn)
                 temptree.reroot_at_node(target_node_temp, update_bipartitions=False, suppress_unifurcations=True)
 
-                # recombination_trees.append(recom_maker(temptree, kid1.index, nu))
-                recombination_trees.append(recom_maker(temptree, kid1.index, nu[k1]))
+                recombination_trees.append(recom_maker(temptree, kid1.index, nu))
+                # recombination_trees.append(recom_maker(temptree, kid1.index, nu[k1]))
                 recombination_nodes.append(kid1)
 
             # print(recombination_trees)
@@ -968,10 +969,12 @@ def make_CATG_file(tips_num,alignment_len,tipdata,column,tree,outputname):
 
 if __name__ == "__main__":
 
-    tree_path = '/home/nehleh/Desktop/examples/num_4/num_4_recom_1_RAxML_bestTree.tree'
-    genomefile = '/home/nehleh/Desktop/examples/num_4/num_4_recom_1_Wholegenome_4_1.fasta'
-    baciSimLog = '/home/nehleh/Desktop/examples/num_4/num_4_recom_1_BaciSim_Log.txt'
-    clonal_path = '/home/nehleh/Desktop/examples/num_4/num_4_Clonaltree.tree'
+    path = os.path.dirname(os.path.abspath(__file__))
+
+    tree_path = path+'/num_4_recom_1_RAxML_bestTree.tree'
+    genomefile = path+'/num_4_recom_1_Wholegenome_4_1.fasta'
+    baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
+    clonal_path = path+'/num_4_Clonaltree.tree'
 
 
 
@@ -1069,21 +1072,21 @@ if __name__ == "__main__":
 
 
 
-    #
+
     # if simulation == 1 :
-    #     clonal_path = args.clonaltreeFile
-    #     baciSimLog = args.recomlogFile
+    #     # clonal_path = args.clonaltreeFile
+    #     # baciSimLog = args.recomlogFile
     #     clonal_tree = Tree.get_from_path(clonal_path, 'newick')
     #     nodes_number_c = len(clonal_tree.nodes())
     #     set_index(clonal_tree,alignment)
     #     realData = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
-    #     # print(realData.shape)
+    #     print(realData.shape)
     #     # print(nodes_number_c)
-    #     # print(tree.as_ascii_plot(show_internal_node_labels=True))
+    #     print(tree.as_ascii_plot(show_internal_node_labels=True))
     #     if initialstat.find('2') != -1:
     #         print(phyloHMMData2.shape)
-    #         # rmse_real_philo2 = mean_squared_error(realData,phyloHMMData2,squared=False)
-    #         # write_rmse(rmse_real_philo2, 'RMSE_PB_two.csv')
+    #         rmse_real_philo2 = mean_squared_error(realData,phyloHMMData2,squared=False)
+    #         write_rmse(rmse_real_philo2, 'RMSE_PB_two.csv')
     #     if initialstat.find('8') != -1:
     #         print(phyloHMMData8.shape)
     #         # rmse_real_philo8 = mean_squared_error(realData,phyloHMMData8,squared=False)
