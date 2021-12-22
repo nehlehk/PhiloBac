@@ -990,7 +990,7 @@ if __name__ == "__main__":
     parser.add_argument('-s', "--startProb", type=list, default= [0.99, 0.01],help='frequencies')
     parser.add_argument('-m', "--transmat", type=list, default= [[0.999, 0.001],  [0.001, 0.999]], help='rates')
     parser.add_argument('-st', "--status", type=str,  default='2', help='2 for the two states hmm and 8 for eight states of hmm , 2,8 for both ')
-    parser.add_argument('-xml', "--xmlFile", type=str, default='/home/nehleh/PhiloBacteria/bin/template/GTR_template.xml' ,help='xmlFile')
+    # parser.add_argument('-xml', "--xmlFile", type=str, default='/home/nehleh/PhiloBacteria/bin/template/GTR_template.xml' ,help='xmlFile')
     parser.add_argument('-sim', "--simulation", type=int, default=1, help='1 for the simulation data and 0 for emprical sequence')
     args = parser.parse_args()
 
@@ -1002,7 +1002,7 @@ if __name__ == "__main__":
     p_start = args.startProb
     p_trans = args.transmat
     threshold = args.threshold
-    xml_path = args.xmlFile
+    # xml_path = args.xmlFile
     initialstat = args.status
     simulation = args.simulation
 
@@ -1039,9 +1039,9 @@ if __name__ == "__main__":
         phyloHMM_log = phyloHMM_Log(c_tree, phyloHMMData2,'PB_Log_two.txt')
         write_best_nu(best_nu,'PB_nu_two.txt')
         # # # ======================================= providing xml files for beast ============================================
-        make_beast_xml_partial(tipdata, c_tree, xml_path,'PB_Partial_two.xml')
-        make_beast_xml_gap(tipdata, tree, xml_path, 0.5,'PB_Gap_two.xml')
-        make_beast_xml_delCol(recom_prob,tips_num,0.5,'PB_Del_two.xml')
+        # make_beast_xml_partial(tipdata, c_tree, xml_path,'PB_Partial_two.xml')
+        # make_beast_xml_gap(tipdata, tree, xml_path, 0.5,'PB_Gap_two.xml')
+        # make_beast_xml_delCol(recom_prob,tips_num,0.5,'PB_Del_two.xml')
 
     #----------------------------------------------------------------------------------------------------------------------------------------------------
     if initialstat.find('8') != -1:
