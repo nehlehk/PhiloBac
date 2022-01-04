@@ -13,7 +13,7 @@ c_file = file(params.test_file)
 // Genome = Channel.value(10)
 frequencies = Channel.value(' 0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
-iteration = Channel.value(1..3)
+iteration = Channel.value(1..1)
 recom_range = Channel.value(1)
 
 
@@ -24,13 +24,13 @@ params.json = "${PWD}/bin/template/GTR_template.json"
 params.genome = 10
 params.genomelen = '100000'
 params.recomlen = '600'
-params.recomrate = '0.03'
+params.recomrate = '0.0005'
 params.tMRCA = '0.01'
-params.nu_sim = '0.045'
+params.nu_sim = '0.05'
 params.best = false
 params.method = 'pb'
 params.hmm_state = '2'
-params.nu_hmm = 0.033
+params.nu_hmm = 0.0
 params.sim_stat = 1 //0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes
 params.sim_fixed = 1 //0 for fixed number and fixed len of recombination and 1 for normal/random way making recombination events.
 params.seq = "/home/nehleh/PhyloCode/Result/Results_13092021/num_4/num_4_Wholegenome_4.fasta"
@@ -178,6 +178,7 @@ process PhiloBacteria {
         path 'PB_Recom_eight.jpeg'  , emit: PB_Recom_eight   , optional: true
         path 'PB_Log_eight.txt'     , emit: PB_Log_eight     , optional: true
         path 'PB_nu_eight.txt'      , emit: PB_nu_eight      , optional: true
+        path 'PB_Two.catg'          , emit: PB_CATG_two      , optional: true
 
      """
        phyloHmm.py -t ${MyRaxML}  -a ${Wholegenome}  -cl ${Clonaltree} -rl ${Recomlog} -nu ${params.nu_hmm} -st ${params.hmm_state} -xml ${params.xml} -sim ${params.simulation}
@@ -205,6 +206,7 @@ process Make_BaciSim_GapDel {
         path 'BaciSim_partial.xml' , emit: Partial_xml , optional: true
         path 'BaciSim_partial_certian.xml' , emit: Partial_xml_certian , optional: true
         path 'BaciSim_partial.json' , emit: Partial_json , optional: true
+        path 'BaciSim_Best_Two.catg' , emit: Certain_CATG , optional: true
 
      """
         BaciSim_GapDel.py -t ${Clonaltree} -a${Wholegenome}  -r${MyRaxML} -l${Recomlog} -x ${params.xml} -j ${params.json}
@@ -435,6 +437,7 @@ workflow Best {
             original_Del_xml = Make_BaciSim_GapDel.out.BaciSim_Del
             original_partial_xml = Make_BaciSim_GapDel.out.Partial_xml
             original_certian_xml = Make_BaciSim_GapDel.out.Partial_xml_certian
+            certian_catg = Make_BaciSim_GapDel.out.Certain_CATG
 }
 
 
@@ -516,7 +519,7 @@ workflow {
 
         if (params.best == true) {
             Best(Sim.out.genome,Sim.out.clonaltree,Get_raxml_tree.out.MyRaxML,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange)
-            Beast(Best.out.original,'',Sim.out.iteration,Sim.out.recomRange)
+//             Beast(Best.out.original,'',Sim.out.iteration,Sim.out.recomRange)
 //             Beast(Best.out.original_partial_xml,'original_partial_',Sim.out.iteration,Sim.out.recomRange)
 //             Beast_cerain(Best.out.original_Gap_xml,'original_gap_',Sim.out.iteration,Sim.out.recomRange)
         }

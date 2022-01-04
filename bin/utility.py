@@ -13,7 +13,6 @@ import numpy.linalg as la
 
 
 
-
 class GTR_model:
     def __init__(self, rates, pi):
         self.rates = rates
@@ -24,7 +23,6 @@ class GTR_model:
     #     ========================================================================
     def p_matrix(self , br_length):
         p = np.zeros((4, 4))
-
         mu = 0
         freq = np.zeros((4, 4))
         q = np.zeros((4, 4))
@@ -48,26 +46,38 @@ class GTR_model:
         exchang[1][3] = exchang[3][1] = e
         exchang[2][3] = exchang[3][2] = f
 
-
         q = np.multiply(np.dot(exchang, freq), mu)
 
         for i in range(4):
             q[i][i] = -sum(q[i][0:4])
 
-
         s = np.dot(sqrtPi, np.dot(q, sqrtPiInv))
+        eigval, eigvec = la.eig(s)
+        eigvec_inv = la.inv(eigvec)
+        left = np.dot(sqrtPiInv, eigvec)
+        right = np.dot(eigvec_inv, sqrtPi)
+        p = np.dot(left, np.dot(np.diag(np.exp(eigval * br_length)), right))
+        return p
 
+    def p_t(self, br_length):
+        blens = np.expand_dims(br_length, -1)
+        rates = np.concatenate((self.rates, np.array([1.0])))
+        exchang = np.zeros((4, 4))
+        sqrtPi = np.diag(np.sqrt(self.pi))
+        sqrtPiInv = np.diag(1.0 / np.sqrt(self.pi))
+        iu = np.triu_indices(4, 1)
+        exchang[np.triu_indices(4, 1)] = exchang[iu[1], iu[0]] = rates
+        exchang = np.dot(exchang, np.diag(self.pi))
+        exchang[range(4), range(4)] = -exchang.sum(-1)
+        exchang = -exchang/np.sum(exchang.diagonal()*self.pi)
+        s = np.dot(sqrtPi, np.dot(exchang, sqrtPiInv))
 
         eigval, eigvec = la.eig(s)
         eigvec_inv = la.inv(eigvec)
 
         left = np.dot(sqrtPiInv, eigvec)
         right = np.dot(eigvec_inv, sqrtPi)
-
-        p = np.dot(left, np.dot(np.diag(np.exp(eigval * br_length)), right))
-
-
-        return p
+        return left @ (np.expand_dims(np.exp(eigval * blens), 1)*np.eye(4)) @ right
 # **********************************************************************************************************************
 def give_index(c):
     if c == "A":
@@ -223,7 +233,6 @@ def my_mrca(tree,tips):
   return myMrca.index
 # **********************************************************************************************************************
 def get_DNA_fromAlignment(alignment):
-
     alignment_len = alignment.sequence_size
     tips = len(alignment)
     column = []

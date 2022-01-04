@@ -100,97 +100,19 @@ class phyloLL_HMM(hmmlearn.base._BaseHMM):
 def compute_logprob_phylo(X,recom_trees,model,child_order,X_child_order,status):
     n, dim = X.shape
     result = np.zeros((n, len(recom_trees)))
+    XX = np.transpose(X.reshape((X.shape[0], 3, 4)), (0, 2, 1))
+
+    # print("XX.shape")
+    # print(XX.shape)
 
     for tree_id, item in enumerate(recom_trees):
         state_tree = dendropy.Tree.get(data=item, schema="newick")
         children = state_tree.seed_node.child_nodes()
-        p = np.ones((n,4))
-        for i in range(0, len(children)):
-            order = X_child_order.index(child_order[i])
-            matrix = model.p_matrix(children[i].edge_length)
-            p *= [np.dot(matrix, X[site_id, order * 4:(order + 1) * 4]) for site_id in range(n)]
-            # for site_id in range(n):
-            #     p[site_id,:] *= np.dot(matrix, X[site_id,order * 4:(order + 1) * 4])
-        site_l = np.dot(p, model.get_pi())
-        result[:, tree_id] = np.log(site_l)
+        orders = [X_child_order.index(child_order[i]) for i in range(len(children))]
+        branch_lengths = np.array( [children[i].edge_length for i in range(len(children))])
+        matrices = model.p_t(branch_lengths)
+        result[:, tree_id] = np.log(model.get_pi() @ (matrices @ XX[..., orders].T).prod(0))
 
-    # print("optimized:")
-    # print(result[0])
-
-
-
-        # for site_id, partial in enumerate(X):
-        #     print(partial)
-        #     # print(site_id)
-        #     # order = child_order.index(X_child_order[tree_id * len(children)])
-        #     for i in range(0, len(children)):
-        #         if status == 2:
-        #             order = X_child_order.index(child_order[i])
-        #         if status == 8:
-        #             if tree_id == 0:
-        #                 order = child_order.index(X_child_order[0])
-        #             else:
-        #                 order = X_child_order.index(child_order[0])
-                # indices[i].append((order * 4 : (order + 1) * 4]))
-                # indices[i].append([(str(order * 4) +":"+ str((order + 1) * 4))])
-                # temp = {order * 4 :(order + 1) * 4}
-                # print(temp)
-                # indices[i].append((list(temp.items())))
-                # indices[i].append([order * 4 + i for i in range(4)])
-            # print(indices[0])
-            # print("one")
-            # print(indices[0][:])
-            # print("two")
-            # print(indices[0])
-        # temp = [partial[index] for index in indices[0]]
-        # print(temp[10000])
-
-
-        # p = np.ones(4)
-        # for i in range(0, len(children)):
-        #     # p *= np.dot(model.p_matrix(children[i].edge_length), temp)
-        #     temp = [partial[index] for index in indices[i]]
-        #     p *= np.dot(model.p_matrix(children[i].edge_length), temp)
-        #     # p *= np.dot(model.p_matrix(children[i].edge_length), partial[indices[i]])
-        # site_l = np.dot(p, model.get_pi())
-        # result[site_id, tree_id] = np.log(site_l)
-
-
-    # n, dim = X.shape
-    # result = np.zeros((n, len(recom_trees)))
-    # for tree_id, item in enumerate(recom_trees):
-    #     state_tree = dendropy.Tree.get(data=item, schema="newick")
-    #     children = state_tree.seed_node.child_nodes()
-    #     # print(children)
-    #     for site_id, partial in enumerate(X):
-    #         # order = child_order.index(X_child_order[tree_id * len(children)])
-    #         if status == 2:
-    #             order = X_child_order.index(child_order[0])
-    #         if status == 8:
-    #             if tree_id == 0:
-    #                 order = child_order.index(X_child_order[0])
-    #             else:
-    #                 order = X_child_order.index(child_order[0])
-    #         p = np.zeros(4)
-    #         p = np.dot(model.p_matrix(children[0].edge_length), partial[order * 4:(order + 1) * 4])
-    #         # print("p:")
-    #         # print(p)
-    #         for i in range(1, len(children)):
-    #             # order = child_order.index(X_child_order[(tree_id* len(children)) + i])
-    #             if status == 2:
-    #                 order = X_child_order.index(child_order[i])
-    #             if status == 8:
-    #                 if tree_id == 0:
-    #                     order = child_order.index(X_child_order[0])
-    #                 else:
-    #                     order = X_child_order.index(child_order[0])
-    #             p *= np.dot(model.p_matrix(children[i].edge_length), partial[order * 4:(order + 1) * 4])
-    #         site_l = np.dot(p, model.get_pi())
-    #         # print("site_l:")
-    #         # print(site_l)
-    #         result[site_id, tree_id] = np.log(site_l)
-    # print("normal:")
-    # print(result[0])
     return result
 # **********************************************************************************************************************
 def make_beast_xml_partial(tipdata,tree,xml_path,outputname):
@@ -269,6 +191,25 @@ def set_tips_partial(column,tips_num):
         partial[site][tip][i] = 1
     return partial
 # **********************************************************************************************************************
+def computelikelihood_mixture_new(tree,alignment_len,column,tip_partial,model,tips_num):
+    partial = np.zeros(((alignment_len,(2 * tips_num) -1, 4)))
+    partial[:,0:tips_num,:] = tip_partial
+    persite_ll = np.zeros(alignment_len)
+    partial_new =  np.rollaxis(partial, 2, 0)
+    # print(partial_new.shape)
+
+
+    for node in tree.postorder_node_iter():
+        if not node.is_leaf():
+            children = node.child_nodes()
+            partial_new[..., node.index] = np.dot(model.p_matrix(children[0].edge_length), partial_new[..., children[0].index])
+            for i in range(1, len(children)):
+                partial_new[..., node.index] *= np.dot(model.p_matrix(children[i].edge_length), partial_new[..., children[i].index])
+
+    persite_ll = np.log(model.get_pi() @ partial_new[..., tree.seed_node.index])
+
+    return persite_ll, partial
+# **********************************************************************************************************************
 def computelikelihood_mixture(tree,alignment_len,column,tip_partial,model,tips_num):
     partial = np.zeros(((alignment_len,(2 * tips_num) -1, 4)))
     partial[:,0:tips_num,:] = tip_partial
@@ -287,11 +228,12 @@ def computelikelihood_mixture(tree,alignment_len,column,tip_partial,model,tips_n
       partial[indexes,:,:] = partial[site,:,:]
       p = np.dot(partial[site,tree.seed_node.index] , model.get_pi())
       persite_ll[indexes] = np.log(p)
-
     return persite_ll, partial
 # **********************************************************************************************************************
 def make_hmm_input_mixture(tree,alignment_len,column,tip_partial,model,tips_num):
-    sitell, partial = computelikelihood_mixture(tree,alignment_len,column,tip_partial,model,tips_num)
+    # sitell, partial = computelikelihood_mixture(tree,alignment_len,column,tip_partial,model,tips_num)
+    sitell, partial = computelikelihood_mixture_new(tree, alignment_len, column, tip_partial, model, tips_num)
+
     children = tree.seed_node.child_nodes()
     children_count = len(children)
     x = np.zeros((alignment_len, children_count * 4))
@@ -742,7 +684,12 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
 
         # --------------  Step 1.2: Calculate X based on this re-rooted tree
 
+        # X2 = computelikelihood_mixture_new(mytree[id_tree], alignment_len, column, tipdata, GTR_sample, tips_num)
+
         X = make_hmm_input_mixture(mytree[id_tree],alignment_len,column,tipdata,GTR_sample,tips_num)
+
+
+
         # to keep the order of clonal tree children
         X_child_order = []
         for id, child in enumerate(target_node.child_node_iter()):
@@ -786,9 +733,9 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
                 model = phyloLL_HMM(n_components=status, trees=[recombination_trees[0], recombination_trees[h]],model=GTR_sample, child_order=child_order, X_child_order=X_child_order)
                 model.startprob_ = p_start
 
-                p_trans_nu0 = np.array([[1, 0],
-                                        [1, 0]])
-
+                # p_trans_nu0 = np.array([[1, 0],
+                #                         [1, 0]])
+                #
                 # if nu[h-1] <= my_nu[0]:
                 #     model.transmat_ = p_trans_nu0
                 # else:
@@ -970,20 +917,20 @@ def make_CATG_file(tips_num,alignment_len,tipdata,column,tree,outputname):
 
 if __name__ == "__main__":
 
-    path = os.path.dirname(os.path.abspath(__file__))
-
-    tree_path = path+'/num_4_recom_1_RAxML_bestTree.tree'
-    genomefile = path+'/num_4_recom_1_Wholegenome_4_1.fasta'
-    baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
-    clonal_path = path+'/num_4_Clonaltree.tree'
+    # path = os.path.dirname(os.path.abspath(__file__))
+    #
+    # tree_path = path+'/num_4_recom_1_RAxML_bestTree.tree'
+    # genomefile = path+'/num_4_recom_1_Wholegenome_4_1.fasta'
+    # baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
+    # clonal_path = path+'/num_4_Clonaltree.tree'
 
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
-    # parser.add_argument('-t', "--raxmltree", type=str, required= True, help='tree')
-    # parser.add_argument('-a', "--alignmentFile", type=str, required= True , help='fasta file')
-    # parser.add_argument('-cl', "--clonaltreeFile", type=str, help='clonalclonaltreeFile tree from BaciSim')
-    # parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
+    parser.add_argument('-t', "--raxmltree", type=str, required= True, help='tree')
+    parser.add_argument('-a', "--alignmentFile", type=str, required= True , help='fasta file')
+    parser.add_argument('-cl', "--clonaltreeFile", type=str, help='clonalclonaltreeFile tree from BaciSim')
+    parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
     parser.add_argument('-nu', "--nuHmm", type=float,default=0.033,help='nuHmm')
     parser.add_argument('-p', "--threshold", type=float, default=0.9, help='threshold')
     parser.add_argument('-f', "--frequencies", type=list, default= [0.2184,0.2606,0.3265,0.1946],help='frequencies')
@@ -991,19 +938,19 @@ if __name__ == "__main__":
     parser.add_argument('-s', "--startProb", type=list, default= [0.99, 0.01],help='frequencies')
     parser.add_argument('-m', "--transmat", type=list, default= [[0.999, 0.001],  [0.001, 0.999]], help='rates')
     parser.add_argument('-st', "--status", type=str,  default='2', help='2 for the two states hmm and 8 for eight states of hmm , 2,8 for both ')
-    # parser.add_argument('-xml', "--xmlFile", type=str, default='/home/nehleh/PhiloBacteria/bin/template/GTR_template.xml' ,help='xmlFile')
+    parser.add_argument('-xml', "--xmlFile", type=str, default='/home/nehleh/PhiloBacteria/bin/template/GTR_template.xml' ,help='xmlFile')
     parser.add_argument('-sim', "--simulation", type=int, default=1, help='1 for the simulation data and 0 for emprical sequence')
     args = parser.parse_args()
 
-    # tree_path = args.raxmltree
-    # genomefile = args.alignmentFile
+    tree_path = args.raxmltree
+    genomefile = args.alignmentFile
     pi = args.frequencies
     rates = args.rates
     nu = args.nuHmm
     p_start = args.startProb
     p_trans = args.transmat
     threshold = args.threshold
-    # xml_path = args.xmlFile
+    xml_path = args.xmlFile
     initialstat = args.status
     simulation = args.simulation
 
@@ -1027,10 +974,8 @@ if __name__ == "__main__":
         p_start = np.array([0.99, 0.01])
         p_trans = np.array([[0.999, 0.001],
                             [0.001, 0.999]])
-        # print('status = 2')
+
         tipdata, posterior, hiddenStates, score, recom_prob, r_node, t_node, best_nu = phylohmm(tree,alignment_len,column,nu, p_start, p_trans,tips_num,status)
-        # print(tipdata.shape)
-        # print(tipdata[0])
         make_CATG_file(tips_num, alignment_len, tipdata,column, tree, 'PB_Two.catg')
 
         c_tree = Tree.get_from_path(tree_path, 'newick')
@@ -1040,9 +985,9 @@ if __name__ == "__main__":
         phyloHMM_log = phyloHMM_Log(c_tree, phyloHMMData2,'PB_Log_two.txt')
         write_best_nu(best_nu,'PB_nu_two.txt')
         # # # ======================================= providing xml files for beast ============================================
-        # make_beast_xml_partial(tipdata, c_tree, xml_path,'PB_Partial_two.xml')
-        # make_beast_xml_gap(tipdata, tree, xml_path, 0.5,'PB_Gap_two.xml')
-        # make_beast_xml_delCol(recom_prob,tips_num,0.5,'PB_Del_two.xml')
+        make_beast_xml_partial(tipdata, c_tree, xml_path,'PB_Partial_two.xml')
+        make_beast_xml_gap(tipdata, tree, xml_path, 0.5,'PB_Gap_two.xml')
+        make_beast_xml_delCol(recom_prob,tips_num,0.5,'PB_Del_two.xml')
 
     #----------------------------------------------------------------------------------------------------------------------------------------------------
     if initialstat.find('8') != -1:

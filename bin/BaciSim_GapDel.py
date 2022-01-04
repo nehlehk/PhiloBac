@@ -213,42 +213,94 @@ def make_json_partial(realData,json_path,raxml_tree,gap_prob,normal_prob):
     jsonFile.write(jsonString)
     jsonFile.close()
 # **********************************************************************************************************************
+def make_CATG_file_certain(realData,tips_num,alignment_len,column,tree,outputname):
+    taxon = tree.taxon_namespace
+    myfile = open(outputname, 'w')
+    myfile.write(str(tips_num)+'\t'+str(alignment_len)+'\n')
+    partial = np.zeros(((alignment_len, tips_num, 4)))
+    for i in range(len(taxon)):
+        myfile.write(str(taxon[i].label))
+        myfile.write('\t')
+    myfile.write('\n')
+    for i in range(alignment_len):
+        # print(column[i])
+        myfile.write(str(column[i]))
+        myfile.write('\t')
+        for j in range(tips_num):
+            if realData[j][i] == 1:
+                temp = str(','.join(map(str, [1,1,1,1])))
+            else:
+                k = give_index(str(column[i][j]))
+                partial[i][j][k] = 1
+                # print(partial[i][j])
+                temp = str(','.join(map(str, partial[i][j])))
+            myfile.write(temp.strip())
+            myfile.write('\t')
+        myfile.write('\n')
+    myfile.close()
+# **********************************************************************************************************************
+def make_CATG_file_partial(realData,tips_num,alignment_len,column,tree,outputname,gap_prob,normal_prob):
+    taxon = tree.taxon_namespace
+    myfile = open(outputname, 'w')
+    myfile.write(str(tips_num)+'\t'+str(alignment_len)+'\n')
+    partial = np.zeros(((alignment_len, tips_num, 4)))
+    for i in range(len(taxon)):
+        myfile.write(str(taxon[i].label))
+        myfile.write('\t')
+    myfile.write('\n')
+    for i in range(alignment_len):
+        # print(column[i])
+        myfile.write(str(column[i]))
+        myfile.write('\t')
+        for j in range(tips_num):
+            if realData[j][i] == 1:
+                # temp = str(','.join(map(str, gap_prob)))
+                partial[i][j] = gap_prob
+            else:
+                partial[i][j] = normal_prob
+                k = give_index(str(column[i][j]))
+                partial[i][j][k] = 1
+            # print(partial[i][j])
+            temp = str(','.join(map(str, partial[i][j])))
+            # print(temp)
+            myfile.write(temp.strip())
+            myfile.write('\t')
+        myfile.write('\n')
+    myfile.close()
+# **********************************************************************************************************************
 
 
 if __name__ == "__main__":
 
 
-    # tree_path = '/home/nehleh/Desktop/sisters/1/clonaltree.tree'
-    # genomefile = '/home/nehleh/Desktop/sisters/1/num_1_wholegenome_1.fasta'
-    # xml_path = '/home/nehleh/PhyloCode/RecomPhyloHMM/bin/GTR_template.xml'
-    # recomLog = '/home/nehleh/Desktop/sisters/1/BaciSim_Log.txt'
-    # json_path = '/home/nehleh/PhyloCode/RecomPhyloHMM/bin/GTR_template.json'
-    # raxml_path = '/home/nehleh/Desktop/sisters/1/num_1_RAxML_bestTree.tree'
+    tree_path = '/home/nehleh/Desktop/examples/num_4/num_4_Clonaltree.tree'
+    genomefile = '/home/nehleh/Desktop/examples/num_4/num_4_recom_1_Wholegenome_4_1.fasta'
+    xml_path = '/home/nehleh/PhyloCode/RecomPhyloHMM/bin/GTR_template.xml'
+    recomLog = '/home/nehleh/Desktop/examples/num_4/num_4_recom_1_BaciSim_Log.txt'
+    json_path = '/home/nehleh/PhyloCode/RecomPhyloHMM/bin/GTR_template.json'
+    raxml_path = '/home/nehleh/Desktop/examples/num_4/num_4_recom_1_RAxML_bestTree.tree'
 
     path = os.getcwd()
 
     parser=argparse.ArgumentParser(description='''You did not specify any parameters. ''',epilog="""All's well that ends well.""")
 
-    # parser.add_argument('-t', "--clonaltree", type=str,  help='tree')
-    # parser.add_argument('-a', "--alignmentFile", type=str, help='fasta file')
-    # parser.add_argument('-r', "--raxmltree", type=str,  help='raxmltree')
-    # parser.add_argument('-l', "--recomlogFile", type=str ,help='recombination log file')
 
-    parser.add_argument('-t', "--clonaltree", type=str, default=path+'/Clonaltree.tree' , help='tree')
-    parser.add_argument('-a', "--alignmentFile", type=str, default= path+'/', help='fasta file')
-    parser.add_argument('-r', "--raxmltree", type=str, default= path+'/', help='raxmltree')
-    parser.add_argument('-l', "--recomlogFile", type=str, default=path+'/BaciSim_Log.txt'  ,help='recombination log file')
-    parser.add_argument('-x', "--xmlFile", default= path+'/template/GTR_template.xml' , type=str, help='xmlFile')
-    parser.add_argument('-j', "--jsonFile", default= path+'/template/GTR_temp_partial.json', type=str, help='jsonFile')
 
-    args = parser.parse_args()
-
-    tree_path = args.clonaltree
-    recomLog = args.recomlogFile
-    genomefile = args.alignmentFile
-    raxml_path = args.raxmltree
-    xml_path = args.xmlFile
-    json_path = args.jsonFile
+    # parser.add_argument('-t', "--clonaltree", type=str, default=path+'/Clonaltree.tree' , help='tree')
+    # parser.add_argument('-a', "--alignmentFile", type=str, default= path+'/', help='fasta file')
+    # parser.add_argument('-r', "--raxmltree", type=str, default= path+'/', help='raxmltree')
+    # parser.add_argument('-l', "--recomlogFile", type=str, default=path+'/BaciSim_Log.txt'  ,help='recombination log file')
+    # parser.add_argument('-x', "--xmlFile", default= path+'/template/GTR_template.xml' , type=str, help='xmlFile')
+    # parser.add_argument('-j', "--jsonFile", default= path+'/template/GTR_temp_partial.json', type=str, help='jsonFile')
+    #
+    # args = parser.parse_args()
+    #
+    # tree_path = args.clonaltree
+    # recomLog = args.recomlogFile
+    # genomefile = args.alignmentFile
+    # raxml_path = args.raxmltree
+    # xml_path = args.xmlFile
+    # json_path = args.jsonFile
 
 
 
@@ -257,6 +309,7 @@ if __name__ == "__main__":
     raxml_tree = Tree.get_from_path(raxml_path, 'newick')
     tips_num = len(alignment)
     nodes_number = len(clonal_tree.nodes())
+    column = get_DNA_fromAlignment(alignment)
 
 
     alignment_len = alignment.sequence_size
@@ -268,16 +321,20 @@ if __name__ == "__main__":
     realData = real_recombination(recomLog,clonal_tree,nodes_number,alignment_len,tips_num)
     realData = realData.transpose()
 
+
     # make_fasta_gap(realData, clonal_tree, alignment)
     # make_fasta_del(realData, clonal_tree, alignment)
 
-    make_xml_seq(xml_path,clonal_tree)
-    make_xml_gap(realData, xml_path, clonal_tree)
-    make_xml_del(realData, xml_path, clonal_tree)
+    # make_xml_seq(xml_path,clonal_tree)
+    # make_xml_gap(realData, xml_path, clonal_tree)
+    # make_xml_del(realData, xml_path, clonal_tree)
+    # make_CATG_file_certain(realData, tips_num, alignment_len, column, clonal_tree, 'BaciSim_Best_Two.catg')
+
 
     gap_prob = [0.99,0.99,0.99,0.99]
-    normal_prob = [0.001,0.001,0.001,0.001]
+    normal_prob = [0.00001,0.00001,0.00001,0.00001]
 
-    make_xml_partial(realData, xml_path, clonal_tree,gap_prob,normal_prob)
+    # make_xml_partial(realData, xml_path, clonal_tree,gap_prob,normal_prob)
+    make_CATG_file_partial(realData, tips_num, alignment_len, column, clonal_tree, 'BaciSim_partial_Two_00001_99_.catg', gap_prob, normal_prob)
     # make_xml_partial_certain(realData, xml_path, clonal_tree)
     # make_json_partial(realData, json_path, raxml_tree,gap_prob,normal_prob)
