@@ -111,8 +111,8 @@ def recom_on_alignment(recom_num,recom_len,alignment_len,clonal_tree,node_labels
     return df,all_data
 # **********************************************************************************************************************
 def ex_recom_maker(tree ,node ,nu ,taxa):
-    rand_nu = np.random.normal(nu,0.007)
-    # rand_nu = nu
+    # rand_nu = np.random.normal(nu,0.007)
+    rand_nu = nu
     write_sim_nu(rand_nu, node)
     # co_recom = rand_nu/2
     co_recom = rand_nu
