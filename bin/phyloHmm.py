@@ -98,13 +98,25 @@ class phyloLL_HMM(hmmlearn.base._BaseHMM):
 
 # **********************************************************************************************************************
 def compute_logprob_phylo(X,recom_trees,model,child_order,X_child_order,status):
+    # n, dim = X.shape
+    # result = np.zeros((n, len(recom_trees)))
+    # for tree_id, item in enumerate(recom_trees):
+    #     state_tree = dendropy.Tree.get(data=item, schema="newick")
+    #     children = state_tree.seed_node.child_nodes()
+    #     # print(children)
+    #     for site_id, partial in enumerate(X):
+    #         # order = child_order.index(X_child_order[tree_id * len(children)])
+    #         order = X_child_order.index(child_order[0])
+    #         p = np.zeros(4)
+    #         p = np.dot(model.p_matrix(children[0].edge_length), partial[order * 4:(order + 1) * 4])
+    #         for i in range(1, len(children)):
+    #             # order = child_order.index(X_child_order[(tree_id* len(children)) + i])
+    #             order = X_child_order.index(child_order[i])
+    #             p *= np.dot(model.p_matrix(children[i].edge_length), partial[order * 4:(order + 1) * 4])
+    #         result[site_id, tree_id] = np.log( np.dot(p, model.get_pi()))
     n, dim = X.shape
     result = np.zeros((n, len(recom_trees)))
     XX = np.transpose(X.reshape((X.shape[0], 3, 4)), (0, 2, 1))
-
-    # print("XX.shape")
-    # print(XX.shape)
-
     for tree_id, item in enumerate(recom_trees):
         state_tree = dendropy.Tree.get(data=item, schema="newick")
         children = state_tree.seed_node.child_nodes()
@@ -197,8 +209,6 @@ def computelikelihood_mixture_new(tree,alignment_len,column,tip_partial,model,ti
     persite_ll = np.zeros(alignment_len)
     partial_new =  np.rollaxis(partial, 2, 0)
     # print(partial_new.shape)
-
-
     for node in tree.postorder_node_iter():
         if not node.is_leaf():
             children = node.child_nodes()
@@ -498,7 +508,7 @@ def phyloHMM_Log(c_tree,output,outputname):
 
     return df
 # **********************************************************************************************************************
-def score_plot_one(nu_score, my_nu,i,status):
+def score_plot_one(nu_score, my_nu,i,status,r_node):
     fig = plt.figure(figsize=(7, 7))
     ax = fig.add_subplot(1, 1, 1)
     ax.plot(my_nu, nu_score)
@@ -510,10 +520,10 @@ def score_plot_one(nu_score, my_nu,i,status):
     ax.set_xlabel("nu")
     ax.xaxis.set_label_coords(0.98, -0.025)
     if status == 2:
-        # ax.set_title("Node" + str(i)+"_child"+str(r_node.index))
-        # plt.savefig("two_nu_score_node" + str(i) + "_child" + str(r_node.index) + ".jpeg")
+        ax.set_title("Node" + str(i)+"_child"+str(r_node.index))
+        plt.savefig("two_nu_score_node" + str(i) + "_child" + str(r_node.index) + ".jpeg")
         ax.set_title("Node" + str(i))
-        plt.savefig("two_nu_score_node" + str(i) + ".jpeg")
+        # plt.savefig("two_nu_score_node" + str(i) + ".jpeg")
     if status == 8:
         ax.set_title("Node" + str(i))
         plt.savefig("eight_nu_score_node" + str(i) + ".jpeg")
@@ -566,13 +576,13 @@ def nu_trees(nu,target_node,tree_path,status):
                     recombination_trees.append(recom_maker(temptree, kids[0].index, nu))
                     recom_child_order.append(kids[0].index)
 
-    return recombination_trees , child_order
+    return recombination_trees,child_order,recombination_nodes
 # **********************************************************************************************************************
 def give_best_nu(X,my_nu,tree_path,clonal,target_node,X_child_order,status):
     if status == 2:
         best_nu = []
         def fn(h,nu):
-            r_trees, child_order = nu_trees(nu, target_node, tree_path, status)
+            r_trees, child_order , r_node = nu_trees(nu, target_node, tree_path, status)
             model = phyloLL_HMM(n_components=status, trees= [clonal, r_trees[h]], model=GTR_sample, child_order=child_order, X_child_order=X_child_order)
             model.startprob_ = p_start
             model.transmat_ = p_trans
@@ -602,10 +612,12 @@ def give_best_nu(X,my_nu,tree_path,clonal,target_node,X_child_order,status):
         # print(result2)
         # print(result2.x)
 
+
+
         # score = np.zeros((3,len(my_nu)))
         # for id,nu in enumerate(my_nu):
         #     # print(nu)
-        #     r_trees, child_order = nu_trees(nu, target_node, tree_path, status)
+        #     r_trees, child_order ,r_node = nu_trees(nu, target_node, tree_path, status)
         #     for h in range(0,len(r_trees)):
         #         model = phyloLL_HMM(n_components=status ,trees= [clonal, r_trees[h]],model=GTR_sample,child_order=child_order,X_child_order=X_child_order)
         #         model.startprob_ = p_start
@@ -615,8 +627,8 @@ def give_best_nu(X,my_nu,tree_path,clonal,target_node,X_child_order,status):
         #     best_nu = []
         #     for h in range(0, len(r_trees)):
         #         kid_score = list(score[h])
-        #         # print("score:", kid_score)
-        #         score_plot_one(kid_score, my_nu, target_node.index,status)
+        #         print("score:", kid_score)
+        #         score_plot_one(kid_score, my_nu, target_node.index,status ,r_node[h])
         #         best_nu.append(my_nu[kid_score.index(max(kid_score))])
         #     print("best_nu:" ,best_nu)
 
@@ -699,9 +711,9 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
         # my_nu = Bounds([0], [1])
         if status == 2 :
             # -------------- find best nu ----------------------
-            # nu = give_best_nu(X, my_nu, tree_path, recombination_trees[0], target_node, X_child_order,status)
+            nu = give_best_nu(X, my_nu, tree_path, recombination_trees[0], target_node, X_child_order,status)
             # print(nu)
-            # best_nu.append([target_node.index, nu])
+            best_nu.append([target_node.index, nu])
             # nu = nu[id_tree]
             # ----------- Step 2: make recombination trees -----------------------------------------------
 
@@ -723,8 +735,8 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
                 target_node_temp = temptree.find_node(filter_fn=filter_fn)
                 temptree.reroot_at_node(target_node_temp, update_bipartitions=False, suppress_unifurcations=True)
 
-                recombination_trees.append(recom_maker(temptree, kid1.index, nu))
-                # recombination_trees.append(recom_maker(temptree, kid1.index, nu[k1]))
+                # recombination_trees.append(recom_maker(temptree, kid1.index, nu))
+                recombination_trees.append(recom_maker(temptree, kid1.index, nu[k1]))
                 recombination_nodes.append(kid1)
 
             # print(recombination_trees)
@@ -733,15 +745,15 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
                 model = phyloLL_HMM(n_components=status, trees=[recombination_trees[0], recombination_trees[h]],model=GTR_sample, child_order=child_order, X_child_order=X_child_order)
                 model.startprob_ = p_start
 
-                # p_trans_nu0 = np.array([[1, 0],
-                #                         [1, 0]])
-                #
-                # if nu[h-1] <= my_nu[0]:
-                #     model.transmat_ = p_trans_nu0
-                # else:
-                #     model.transmat_ = p_trans
+                p_trans_nu0 = np.array([[1, 0],
+                                        [1, 0]])
 
-                model.transmat_ = p_trans
+                if nu[h-1] <= my_nu[0]:
+                    model.transmat_ = p_trans_nu0
+                else:
+                    model.transmat_ = p_trans
+
+                # model.transmat_ = p_trans
 
                 p = model.predict_proba(X)
                 hidden = model.predict(X)
@@ -891,39 +903,93 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
 
     return tipdata,posterior,hiddenStates,score,recom_prob,r_node,t_node,best_nu
 # **********************************************************************************************************************
-def make_CATG_file(tips_num,alignment_len,tipdata,column,tree,outputname):
-    my_tipdata = tipdata.transpose(1, 0, 2)
+def make_CATG_file(tips_num,alignment,alignment_len,tipdata,column,tree,outputname,error_flag):
     taxon = tree.taxon_namespace
     myfile = open(outputname, 'w')
     myfile.write(str(tips_num)+'\t'+str(alignment_len)+'\n')
-    # myfile.write(str(taxon)+'\n')
-    for i in range(len(taxon)):
-        myfile.write(str(taxon[i].label))
+    for idx, name in enumerate(alignment):
+        myfile.write(str(name).replace("'", ""))
         myfile.write('\t')
+    # for i in range(len(taxon)):
+    #     myfile.write(str(taxon[i].label))
+    #     myfile.write('\t')
     myfile.write('\n')
     for i in range(alignment_len):
         myfile.write(str(column[i]))
         myfile.write('\t')
         for j in range(tips_num):
             # temp = tipdata[i,j]
-            temp = str(','.join(map(str, tipdata[i,j])))
+            # if (tipdata[i,j,0] >= threshold and tipdata[i,j,0] <1):
+            #     tipdata[i, j, 0] = 1
+            # if (tipdata[i, j, 1] >= threshold and tipdata[i,j,1] <1):
+            #     tipdata[i, j, 1] = 1
+            # if (tipdata[i, j, 2] >= threshold and tipdata[i,j,2] <1):
+            #     tipdata[i, j, 2] = 1
+            # if (tipdata[i, j, 3] >= threshold and tipdata[i,j,3] <1):
+            #     tipdata[i, j, 3] = 1
+            # else:
+            if error_flag == 1:
+                if (tipdata[i,j,0] < 0.5):
+                    tipdata[i, j, 0] = 0
+                if (tipdata[i,j,1] < 0.5):
+                    tipdata[i, j, 1] = 0
+                if (tipdata[i,j,2] < 0.5):
+                    tipdata[i, j, 2] = 0
+                if (tipdata[i,j,3] < 0.5):
+                    tipdata[i, j, 3] = 0
+            temp = str(','.join(map(str, tipdata[i, j])))
             myfile.write(temp.strip())
             myfile.write('\t')
         myfile.write('\n')
     myfile.close()
 # **********************************************************************************************************************
+def make_physher_json_partial(tipdata,tree,json_path,outputname,error_flag):
+    my_tipdata = tipdata.transpose(1, 0, 2)
+    print(my_tipdata.shape)
+    with open(json_path) as json_file:
+        data = json.load(json_file)
+        taxon = []
+        seq = []
+        for i in range(my_tipdata.shape[0]):
+            x = ''
+            taxon.append(str(give_taxon(tree, i)))
+            for j in range(my_tipdata.shape[1]):
+                if error_flag == 1:
+                    if (my_tipdata[i, j, 0] < 0.5):
+                        my_tipdata[i, j, 0] = 0
+                    if (my_tipdata[i, j, 1] < 0.5):
+                        my_tipdata[i, j, 1] = 0
+                    if (my_tipdata[i, j, 2] < 0.5):
+                        my_tipdata[i, j, 2] = 0
+                    if (my_tipdata[i, j, 3] < 0.5):
+                        my_tipdata[i, j, 3] = 0
+                temp = ",".join(str(x) for x in (my_tipdata[i, j, :]))
+                if j == my_tipdata.shape[1]:
+                    x = x + temp
+                else:
+                    x = x + temp + ','
+            seq.append(x)
 
+        partial = dict(zip(taxon, seq))
+        data['model']['sitepattern']['partials'] = partial
+        data['model']['tree']['newick'] = str(tree)
+
+    jsonString = json.dumps(data, indent=4)
+    jsonFile = open(outputname, "w")
+    jsonFile.write(jsonString)
+    jsonFile.close()
+# **********************************************************************************************************************
 
 
 if __name__ == "__main__":
 
     # path = os.path.dirname(os.path.abspath(__file__))
     #
-    # tree_path = path+'/num_4_recom_1_RAxML_bestTree.tree'
-    # genomefile = path+'/num_4_recom_1_Wholegenome_4_1.fasta'
-    # baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
-    # clonal_path = path+'/num_4_Clonaltree.tree'
-
+    # tree_path = path+'/num_1_recom_1_RAxML_bestTree.tree'
+    # genomefile = path+'/num_1_recom_1_Wholegenome_1_1.fasta'
+    # baciSimLog = path+'/num_1_recom_1_BaciSim_Log.txt'
+    # clonal_path = path+'/num_1_Clonaltree.tree'
+    # json_path = '/home/nehleh/PhiloBacteria/bin'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
@@ -938,9 +1004,11 @@ if __name__ == "__main__":
     parser.add_argument('-s', "--startProb", type=list, default= [0.99, 0.01],help='frequencies')
     parser.add_argument('-m', "--transmat", type=list, default= [[0.999, 0.001],  [0.001, 0.999]], help='rates')
     parser.add_argument('-st', "--status", type=str,  default='2', help='2 for the two states hmm and 8 for eight states of hmm , 2,8 for both ')
-    parser.add_argument('-xml', "--xmlFile", type=str, default='/home/nehleh/PhiloBacteria/bin/template/GTR_template.xml' ,help='xmlFile')
+    parser.add_argument('-js', "--jsonFile", type=str, default='/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json', help='jsonFile')
     parser.add_argument('-sim', "--simulation", type=int, default=1, help='1 for the simulation data and 0 for emprical sequence')
     args = parser.parse_args()
+
+    # parser.add_argument('-xml', "--xmlFile", type=str, default='/home/nehleh/PhiloBacteria/bin/template/GTR_template.xml' ,help='xmlFile')
 
     tree_path = args.raxmltree
     genomefile = args.alignmentFile
@@ -950,7 +1018,8 @@ if __name__ == "__main__":
     p_start = args.startProb
     p_trans = args.transmat
     threshold = args.threshold
-    xml_path = args.xmlFile
+    # xml_path = args.xmlFile
+    json_path = args.jsonFile
     initialstat = args.status
     simulation = args.simulation
 
@@ -968,7 +1037,6 @@ if __name__ == "__main__":
     # print(nodes_number)
     # print(tree.as_ascii_plot(show_internal_node_labels=True))
 
-
     if initialstat.find('2') != -1:
         status = 2
         p_start = np.array([0.99, 0.01])
@@ -976,7 +1044,12 @@ if __name__ == "__main__":
                             [0.001, 0.999]])
 
         tipdata, posterior, hiddenStates, score, recom_prob, r_node, t_node, best_nu = phylohmm(tree,alignment_len,column,nu, p_start, p_trans,tips_num,status)
-        make_CATG_file(tips_num, alignment_len, tipdata,column, tree, 'PB_Two.catg')
+
+
+        # print(recom_prob)
+
+        # if recom_prob['recom_nodes'][18] == 2:
+        #     print(recom_prob['posterior'][18][6150:6155])
 
         c_tree = Tree.get_from_path(tree_path, 'newick')
         set_index(c_tree,alignment)
@@ -984,10 +1057,17 @@ if __name__ == "__main__":
         phyloHMMData2 = recom_resultFig_dm(recom_prob,tips_num,threshold,status,'PB_Recom_two.jpeg')
         phyloHMM_log = phyloHMM_Log(c_tree, phyloHMMData2,'PB_Log_two.txt')
         write_best_nu(best_nu,'PB_nu_two.txt')
+
+        # make_CATG_file(tips_num, alignment, alignment_len, tipdata, column, tree, 'PB_Two.catg', 0)
+        # make_physher_json_partial(tipdata, tree, json_path, 'PB_two.json', 0)
+
+        # make_CATG_file(tips_num, alignment, alignment_len, tipdata, column, tree, 'PB_Two_zero.catg',1)
+        make_physher_json_partial(tipdata,tree,json_path,'PB_two_zero.json',1)
+
         # # # ======================================= providing xml files for beast ============================================
-        make_beast_xml_partial(tipdata, c_tree, xml_path,'PB_Partial_two.xml')
-        make_beast_xml_gap(tipdata, tree, xml_path, 0.5,'PB_Gap_two.xml')
-        make_beast_xml_delCol(recom_prob,tips_num,0.5,'PB_Del_two.xml')
+        # make_beast_xml_partial(tipdata, c_tree, xml_path,'PB_Partial_two.xml')
+        # make_beast_xml_gap(tipdata, tree, xml_path, 0.5,'PB_Gap_two.xml')
+        # make_beast_xml_delCol(recom_prob,tips_num,0.5,'PB_Del_two.xml')
 
     #----------------------------------------------------------------------------------------------------------------------------------------------------
     if initialstat.find('8') != -1:
@@ -1020,20 +1100,20 @@ if __name__ == "__main__":
 
 
     # if simulation == 1 :
-    #     # clonal_path = args.clonaltreeFile
-    #     # baciSimLog = args.recomlogFile
+    #     clonal_path = args.clonaltreeFile
+    #     baciSimLog = args.recomlogFile
     #     clonal_tree = Tree.get_from_path(clonal_path, 'newick')
     #     nodes_number_c = len(clonal_tree.nodes())
     #     set_index(clonal_tree,alignment)
     #     realData = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
-    #     print(realData.shape)
+    #     # print(realData.shape)
     #     # print(nodes_number_c)
-    #     print(tree.as_ascii_plot(show_internal_node_labels=True))
+    #     # print(tree.as_ascii_plot(show_internal_node_labels=True))
     #     if initialstat.find('2') != -1:
     #         print(phyloHMMData2.shape)
     #         rmse_real_philo2 = mean_squared_error(realData,phyloHMMData2,squared=False)
     #         write_rmse(rmse_real_philo2, 'RMSE_PB_two.csv')
     #     if initialstat.find('8') != -1:
     #         print(phyloHMMData8.shape)
-    #         # rmse_real_philo8 = mean_squared_error(realData,phyloHMMData8,squared=False)
-    #         # write_rmse(rmse_real_philo8, 'RMSE_PB_eight.csv')
+    #         rmse_real_philo8 = mean_squared_error(realData,phyloHMMData8,squared=False)
+    #         write_rmse(rmse_real_philo8, 'RMSE_PB_eight.csv')
