@@ -13,25 +13,25 @@ c_file = file(params.test_file)
 // Genome = Channel.value(10)
 frequencies = Channel.value(' 0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
-iteration = Channel.value(1..1)
+iteration = Channel.value(1..10)
 recom_range = Channel.value(1)
 
 
 params.xml = "${PWD}/bin/template/GTR_template.xml"
-params.json = "${PWD}/bin/template/GTR_template.json"
+params.json = "${PWD}/bin/template/GTR_temp_partial.json"
 
 
 params.genome = 10
 params.genomelen = '100000'
 params.recomlen = '600'
-params.recomrate = '0.0005'
+params.recomrate = '0.01'
 params.tMRCA = '0.01'
-params.nu_sim = '0.05'
+params.nu_sim = '0.03'
 params.best = false
 params.method = 'pb'
 params.hmm_state = '2'
-params.nu_hmm = 0.0
-params.sim_stat = 1 //0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes
+params.nu_hmm = 0.033
+params.sim_stat = 0 //0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes
 params.sim_fixed = 1 //0 for fixed number and fixed len of recombination and 1 for normal/random way making recombination events.
 params.seq = "/home/nehleh/PhyloCode/Result/Results_13092021/num_4/num_4_Wholegenome_4.fasta"
 // params.outDir = 'Results'
@@ -179,9 +179,14 @@ process PhiloBacteria {
         path 'PB_Log_eight.txt'     , emit: PB_Log_eight     , optional: true
         path 'PB_nu_eight.txt'      , emit: PB_nu_eight      , optional: true
         path 'PB_Two.catg'          , emit: PB_CATG_two      , optional: true
+        path 'PB_Two.json'          , emit: PB_JSON_two      , optional: true
+        path 'PB_Two_zero.catg'     , emit: PB_CATG_two_zero , optional: true
+        path 'PB_two_zero.json'     , emit: PB_JSON_two_zero , optional: true
+
+//-xml ${params.xml}
 
      """
-       phyloHmm.py -t ${MyRaxML}  -a ${Wholegenome}  -cl ${Clonaltree} -rl ${Recomlog} -nu ${params.nu_hmm} -st ${params.hmm_state} -xml ${params.xml} -sim ${params.simulation}
+       phyloHmm.py -t ${MyRaxML}  -a ${Wholegenome}  -cl ${Clonaltree} -rl ${Recomlog} -nu ${params.nu_hmm} -st ${params.hmm_state} -sim ${params.simulation} -js ${params.json}
 
      """
 }
@@ -213,6 +218,64 @@ process Make_BaciSim_GapDel {
 
      """
 }
+
+
+process RaxmlNG_CATG {
+    publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_recom_${recom_range}_$filename" }
+    maxForks 1
+//    errorStrategy 'ignore'
+
+    input:
+        path PB_CATG_two
+        val iteration
+        val recom_range
+    output:
+        path 'PB_Two.catg.raxml.bestTree', emit: PB_TWO_partialtree
+
+    """
+     raxml-ng  --msa ${PB_CATG_two} --msa-format CATG --model GTR+G --prob-msa on
+    """
+}
+
+
+process Physher_partial {
+
+     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_recom_${recom_range}_$filename" }
+     maxForks 1
+
+     input:
+        path PB_JSON_two_zero
+        val iteration
+        val recom_range
+
+
+     output:
+         path 'physher_two_zero.txt' , emit: physher_two_txt
+
+     """
+       physher  ${PB_JSON_two_zero}   >   physher_two_zero.txt
+     """
+}
+
+
+process Physher_tree {
+     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_recom_${recom_range}_$filename"}
+     maxForks 1
+
+     input:
+        path physher_two_txt
+        val iteration
+        val recom_range
+
+
+     output:
+         path 'physherTree_two_zero.newick' , emit: physherTree_two
+
+     """
+       physher_result.py -t ${physher_two_txt} -o 'physherTree_two_zero.newick'
+     """
+}
+
 
 
 process Get_raxml_tree_gap {
@@ -398,6 +461,66 @@ process NexusToNewick {
 }
 
 
+process mergeTreeFiles {
+     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_recom_${recom_range}_$filename" }
+     maxForks 1
+
+    input:
+         path CFMLtree
+         path GubbinsRescaletree
+         path physherTree_two
+         val iteration
+         val recom_range
+
+
+    output:
+         path 'AllOtherTrees.newick' , emit: allOtherTrees
+
+     """
+       mergeFiles.py ${CFMLtree} ${GubbinsRescaletree} ${physherTree_two}   > AllOtherTrees.newick
+
+     """
+}
+
+
+process TreeCmp {
+     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_recom_${recom_range}_$filename" }
+     maxForks 1
+
+     input:
+
+         path Clonaltree
+         path allOtherTrees
+         val iteration
+         val recom_range
+
+
+     output:
+         path 'TreeCmpResult.result' , emit: Comparison
+
+     """
+       java -jar /home/nehleh/Documents/0_Research/Software/TreeCmp_v2.0-b76/bin/treeCmp.jar  -r ${Clonaltree}  -i ${allOtherTrees} -d qt pd rf ms um rfw gdu -o TreeCmpResult.result -W
+     """
+}
+
+process TreeCmp_summary {
+
+     publishDir "${PWD}/Summary_Results", mode: "copy"
+     maxForks 1
+
+
+     input:
+        path Comparison
+
+
+     output:
+        path   'TreeCmp_summary.jpeg' , emit: FigTreeCmp
+
+     """
+       cmpTree_plot.py -c all_cmpTrees.result
+
+     """
+}
 
 workflow Sim {
         take:
@@ -506,6 +629,24 @@ workflow ClonalFrameML {
 
 
 
+workflow PB {
+        take:
+            clonaltree
+            recom_log
+            genome
+            raxml_tree
+            iteration
+            recomRange
+
+        main:
+            PhiloBacteria(clonaltree,recom_log,genome,raxml_tree)
+            RaxmlNG_CATG(PhiloBacteria.out.PB_CATG_two,iteration,recomRange)
+        emit:
+            PBtree = RaxmlNG_CATG.out.CFMLtree
+}
+
+
+
 workflow {
     if (params.help) {
         helpMessage()
@@ -531,6 +672,9 @@ workflow {
         }
         if (params.method =~ /pb/) {
             PhiloBacteria(Sim.out.clonaltree,Sim.out.recom_log,Sim.out.genome,Get_raxml_tree.out.MyRaxML)
+            //RaxmlNG_CATG(PhiloBacteria.out.PB_CATG_two,Sim.out.iteration,Sim.out.recomRange)
+            Physher_partial(PhiloBacteria.out.PB_JSON_two_zero,Sim.out.iteration,Sim.out.recomRange)
+            Physher_tree(Physher_partial.out.physher_two_txt,Sim.out.iteration,Sim.out.recomRange)
         }
 //         if (params.analyse == 0)  {
 //
@@ -540,9 +684,12 @@ workflow {
 //
 //         }
 //
-//         if (params.analyse == 2)  {
-//
-//         }
+         if (params.analyse == 2)  {
+            mergeTreeFiles(ClonalFrameML.out.CFMLtree,Gubbins.out.GubbinsRescaletree,Physher_tree.out.physherTree_two,Sim.out.iteration,Sim.out.recomRange)
+            TreeCmp(Sim.out.clonaltree,mergeTreeFiles.out.allOtherTrees,Sim.out.iteration,Sim.out.recomRange)
+            collectedCMP_tree = TreeCmp.out.Comparison.collectFile(name:"all_cmpTrees.result",storeDir:"${PWD}/Summary_Results", keepHeader:false , sort: false)
+            TreeCmp_summary(collectedCMP_tree)
+         }
     }
 
      if (params.mode == 'emp') {
