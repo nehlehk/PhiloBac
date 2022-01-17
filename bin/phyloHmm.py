@@ -98,22 +98,6 @@ class phyloLL_HMM(hmmlearn.base._BaseHMM):
 
 # **********************************************************************************************************************
 def compute_logprob_phylo(X,recom_trees,model,child_order,X_child_order,status):
-    # n, dim = X.shape
-    # result = np.zeros((n, len(recom_trees)))
-    # for tree_id, item in enumerate(recom_trees):
-    #     state_tree = dendropy.Tree.get(data=item, schema="newick")
-    #     children = state_tree.seed_node.child_nodes()
-    #     # print(children)
-    #     for site_id, partial in enumerate(X):
-    #         # order = child_order.index(X_child_order[tree_id * len(children)])
-    #         order = X_child_order.index(child_order[0])
-    #         p = np.zeros(4)
-    #         p = np.dot(model.p_matrix(children[0].edge_length), partial[order * 4:(order + 1) * 4])
-    #         for i in range(1, len(children)):
-    #             # order = child_order.index(X_child_order[(tree_id* len(children)) + i])
-    #             order = X_child_order.index(child_order[i])
-    #             p *= np.dot(model.p_matrix(children[i].edge_length), partial[order * 4:(order + 1) * 4])
-    #         result[site_id, tree_id] = np.log( np.dot(p, model.get_pi()))
     n, dim = X.shape
     result = np.zeros((n, len(recom_trees)))
     XX = np.transpose(X.reshape((X.shape[0], 3, 4)), (0, 2, 1))
@@ -208,7 +192,6 @@ def computelikelihood_mixture_new(tree,alignment_len,column,tip_partial,model,ti
     partial[:,0:tips_num,:] = tip_partial
     persite_ll = np.zeros(alignment_len)
     partial_new =  np.rollaxis(partial, 2, 0)
-    # print(partial_new.shape)
     for node in tree.postorder_node_iter():
         if not node.is_leaf():
             children = node.child_nodes()
@@ -599,38 +582,13 @@ def give_best_nu(X,my_nu,tree_path,clonal,target_node,X_child_order,status):
 
         result = spo.minimize_scalar(fn0, method="bounded", bounds=(0, 0.09) , options={'disp': 1})
         best_nu.append(result.x)
-        # print(result)
-        # print(result.x)
 
         result1 = spo.minimize_scalar(fn1, method="bounded", bounds=(0, 0.09) , options={'disp': 1})
         best_nu.append(result1.x)
-        # print(result1)
-        # print(result1.x)
 
         result2 = spo.minimize_scalar(fn2, method="bounded", bounds=(0, 0.09) , options={'disp': 1}) #bounded
         best_nu.append(result2.x)
-        # print(result2)
-        # print(result2.x)
 
-
-
-        # score = np.zeros((3,len(my_nu)))
-        # for id,nu in enumerate(my_nu):
-        #     # print(nu)
-        #     r_trees, child_order ,r_node = nu_trees(nu, target_node, tree_path, status)
-        #     for h in range(0,len(r_trees)):
-        #         model = phyloLL_HMM(n_components=status ,trees= [clonal, r_trees[h]],model=GTR_sample,child_order=child_order,X_child_order=X_child_order)
-        #         model.startprob_ = p_start
-        #         model.transmat_ = p_trans
-        #         s = model.score(X)
-        #         score[h][id] = s
-        #     best_nu = []
-        #     for h in range(0, len(r_trees)):
-        #         kid_score = list(score[h])
-        #         print("score:", kid_score)
-        #         score_plot_one(kid_score, my_nu, target_node.index,status ,r_node[h])
-        #         best_nu.append(my_nu[kid_score.index(max(kid_score))])
-        #     print("best_nu:" ,best_nu)
 
     if status == 8:
         # score = []
@@ -651,12 +609,6 @@ def give_best_nu(X,my_nu,tree_path,clonal,target_node,X_child_order,status):
         # result = spo.minimize(fn, 0.0001, method='trust-constr', options={'disp': True}) #, bounds=my_nu
         print("nu = {} , Score = {}".format(result.x, result.fun))
         best_nu = result.x
-        # score.append(result.x)
-            # print("score:",s)
-        # print(score)
-        # score_plot_one(score, my_nu, target_node.index,status)
-        # best_nu = my_nu[score.index(max(score))]
-        # print("best_nu:" ,best_nu)
 
     return best_nu
 # *********************************************************************************************************************
@@ -695,9 +647,6 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
         recombination_trees.append(mytree[id_tree].as_string(schema="newick"))
 
         # --------------  Step 1.2: Calculate X based on this re-rooted tree
-
-        # X2 = computelikelihood_mixture_new(mytree[id_tree], alignment_len, column, tipdata, GTR_sample, tips_num)
-
         X = make_hmm_input_mixture(mytree[id_tree],alignment_len,column,tipdata,GTR_sample,tips_num)
 
 
@@ -708,13 +657,10 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
             X_child_order.append(child.index)
 
         my_nu = np.arange(0.001, 0.11, 0.01)
-        # my_nu = Bounds([0], [1])
         if status == 2 :
             # -------------- find best nu ----------------------
             nu = give_best_nu(X, my_nu, tree_path, recombination_trees[0], target_node, X_child_order,status)
-            # print(nu)
             best_nu.append([target_node.index, nu])
-            # nu = nu[id_tree]
             # ----------- Step 2: make recombination trees -----------------------------------------------
 
             temptree = Tree.get_from_path(tree_path, 'newick')
@@ -728,7 +674,6 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
 
             for k1, kid1 in enumerate(kids):
                 child_order.append(kid1.index)  # keep the order of children after reroot
-                # if (kid1.index < tips_num) or (target_node.index < kid1.index):  # to avoid having repeated internal nodes
                 temptree = Tree.get_from_path(tree_path, 'newick')
                 set_index(temptree,alignment)
                 filter_fn = lambda n: hasattr(n, 'index') and n.index == target_node.index
@@ -777,13 +722,9 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
         if status == 8 :
             # -------------- find best nu ----------------------
             nu = give_best_nu(X, my_nu, tree_path, recombination_trees[0], target_node, X_child_order,status)
-            print(nu)
-            # best_nu.append([target_node.index,nu])
-            # nu = best[id_tree]
-            # print(nu)
+            best_nu.append([target_node.index,nu])
 
             # ----------- Step 2: make recombination trees -----------------------------------------------
-            # recom_child_order = []
             temptree = Tree.get_from_path(tree_path, 'newick')
             set_index(temptree,alignment)
 
@@ -814,20 +755,9 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
                         # recom_child_order.append(kid2.index)
                     if k1 == k2 == 2:
                         recombination_trees.append(recom_maker(temptree, kids[0].index, nu))
-                        # recom_child_order.append(kids[0].index)
-                # recombination_trees.append(recom_maker(temptree, kid1.index, kid1.edge_length * nu))
-                # recom_child_order.append(kid1.index)
-                # for k2, kid2 in enumerate(kids):
-                #     if kid1.index < kid2.index:
-                #         recombination_trees.append(recom_maker(temptree, kid2.index, kid2.edge_length * nu))
-                #         recom_child_order.append(kid2.index)
-                #     if k1 == k2 == 2:
-                #         recombination_trees.append(recom_maker(temptree, kids[0].index, kids[0].edge_length * nu))
-                #         recom_child_order.append(kids[0].index)
+
 
             # ----------- Step 3: Call phyloHMM -----------------------------------------------------
-            # print("recombination_trees after best nu:")
-            # print(recombination_trees)
             model = phyloLL_HMM(n_components=status, trees=recombination_trees, model=GTR_sample, child_order=child_order,X_child_order=X_child_order)
             model.startprob_ = p_start
 
