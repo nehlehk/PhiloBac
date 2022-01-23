@@ -105,13 +105,13 @@ def rescale_gubbtree(gubbins_tree,gubb_csv,alignment_len):
     #     myfile.close()
 # **********************************************************************************************************************
 if __name__ == "__main__":
-
-    clonal_path = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/num_1_Clonaltree.tree'
-    genomefile = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/num_1_recom_1_Wholegenome_1_1.fasta'
-    baciSimLog = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/num_1_recom_1_BaciSim_Log.txt'
-    gubbins_log = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/gubbins.recombination_predictions.gff'
-    gubb_tree = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/gubbins.node_labelled.final_tree.tre'
-    gubb_csv = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/gubbins.per_branch_statistics.csv'
+    #
+    # clonal_path = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/num_1_Clonaltree.tree'
+    # genomefile = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/num_1_recom_1_Wholegenome_1_1.fasta'
+    # baciSimLog = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/num_1_recom_1_BaciSim_Log.txt'
+    # gubbins_log = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/gubbins.recombination_predictions.gff'
+    # gubb_tree = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/gubbins.node_labelled.final_tree.tre'
+    # gubb_csv = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/gubbins.per_branch_statistics.csv'
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
     parser.add_argument('-cl', "--clonaltreeFile", type=str,  help='clona tree from BaciSim')
@@ -125,10 +125,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
-    # genomefile = args.alignmentFile
-    # gubbins_log = args.gubblogFile
-    # gubb_tree = args.gubbtreefile
-    # gubb_csv = args.gubbcsvfile
+    genomefile = args.alignmentFile
+    gubbins_log = args.gubblogFile
+    gubb_tree = args.gubbtreefile
+    gubb_csv = args.gubbcsvfile
     simulation = args.simulation
 
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
@@ -144,8 +144,8 @@ if __name__ == "__main__":
 
 
     if simulation == 1:
-        # clonal_path = args.clonaltreeFile
-        # baciSimLog = args.recomlogFile
+        clonal_path = args.clonaltreeFile
+        baciSimLog = args.recomlogFile
         clonal_tree = Tree.get_from_path(clonal_path, 'newick')
         nodes_num_c = len(clonal_tree.nodes())
         set_index(clonal_tree)

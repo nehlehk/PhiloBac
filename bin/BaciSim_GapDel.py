@@ -184,7 +184,34 @@ def make_xml_partial_certain(realData,xml_path,clonaltree):
 
     my_xml.write('BaciSim_partial_certian.xml' ,encoding="utf-8", xml_declaration=True)
 # **********************************************************************************************************************
-def make_json_partial(realData,json_path,raxml_tree,gap_prob,normal_prob):
+def make_physher_json_partial(tipdata,tree,json_path,outputname,error_flag):
+    my_tipdata = tipdata.transpose(1, 0, 2)
+    # print(my_tipdata.shape)
+    with open(json_path) as json_file:
+        data = json.load(json_file)
+        taxon = []
+        seq = []
+        for i in range(my_tipdata.shape[0]):
+            x = ''
+            taxon.append(str(give_taxon(tree, i)))
+            for j in range(my_tipdata.shape[1]):
+                temp = ",".join(str(x) for x in (my_tipdata[i, j, :]))
+                if j == my_tipdata.shape[1]:
+                    x = x + temp
+                else:
+                    x = x + temp + ','
+            seq.append(x)
+
+        partial = dict(zip(taxon, seq))
+        data['model']['sitepattern']['partials'] = partial
+        data['model']['tree']['newick'] = str(tree)
+
+    jsonString = json.dumps(data, indent=4)
+    jsonFile = open(outputname, "w")
+    jsonFile.write(jsonString)
+    jsonFile.close()
+# **********************************************************************************************************************
+def make_json_partial(realData,json_path,raxml_tree,gap_prob,normal_prob,output):
     partial = np.zeros(((alignment_len, tips_num, 4)))
     with open(json_path) as json_file:
         data = json.load(json_file)
@@ -204,12 +231,50 @@ def make_json_partial(realData,json_path,raxml_tree,gap_prob,normal_prob):
                     x = x + str(repr(partial[j][i]))[7:-2] + ','
                 seq.append(x)
 
-        align = dict(zip(taxon, seq))
-        data['model']['sitepattern']['alignment']['sequences'] =  align
+        partial = dict(zip(taxon, seq))
+        data['model']['sitepattern']['partials'] = partial
         data['model']['tree']['newick'] = str(raxml_tree)
 
+        # align = dict(zip(taxon, seq))
+        # data['model']['sitepattern']['alignment']['sequences'] =  align
+        # data['model']['tree']['newick'] = str(raxml_tree)
+
     jsonString = json.dumps(data, indent=4)
-    jsonFile = open("BaciSim_partial.json", "w")
+    jsonFile = open(output, "w")
+    jsonFile.write(jsonString)
+    jsonFile.close()
+# **********************************************************************************************************************
+def make_json_partial_PSE(realData,json_path,raxml_tree,gap_prob,normal_prob,nu,output):
+    partial = np.zeros(((alignment_len, tips_num, 4)))
+    with open(json_path) as json_file:
+        data = json.load(json_file)
+        taxon = []
+        seq = []
+        for i in range(realData.shape[0]):
+            x = ''
+            if i < tips_num:
+                taxon.append(str(give_taxon(raxml_tree, i)))
+                for j in range(realData.shape[1]):
+                    if realData[i][j] == 1:
+                        partial[j][i][0:4] = (gap_prob[0:4] * nu)/3
+                        k = give_index(str(alignment[i][j]))
+                        partial[j][i][k] = 1 - (gap_prob[0] * nu)
+                    else:
+                        partial[j][i] = (normal_prob[0:4] * nu)/3
+                        k = give_index(str(alignment[i][j]))
+                        partial[j][i][k] = 1 - (normal_prob[0] * nu)
+                    x = x + str(repr(partial[j][i]))[7:-2] + ','
+                seq.append(x)
+
+        partial = dict(zip(taxon, seq))
+        data['model']['sitepattern']['partials'] = partial
+        data['model']['tree']['newick'] = str(raxml_tree)
+        # align = dict(zip(taxon, seq))
+        # data['model']['sitepattern']['alignment']['sequences'] =  align
+        # data['model']['tree']['newick'] = str(raxml_tree)
+
+    jsonString = json.dumps(data, indent=4)
+    jsonFile = open(output, "w")
     jsonFile.write(jsonString)
     jsonFile.close()
 # **********************************************************************************************************************
@@ -270,37 +335,39 @@ def make_CATG_file_partial(realData,tips_num,alignment_len,column,tree,outputnam
 # **********************************************************************************************************************
 
 
+
+
 if __name__ == "__main__":
 
 
-    tree_path = '/home/nehleh/Desktop/examples/num_4/num_4_Clonaltree.tree'
-    genomefile = '/home/nehleh/Desktop/examples/num_4/num_4_recom_1_Wholegenome_4_1.fasta'
-    xml_path = '/home/nehleh/PhyloCode/RecomPhyloHMM/bin/GTR_template.xml'
-    recomLog = '/home/nehleh/Desktop/examples/num_4/num_4_recom_1_BaciSim_Log.txt'
-    json_path = '/home/nehleh/PhyloCode/RecomPhyloHMM/bin/GTR_template.json'
-    raxml_path = '/home/nehleh/Desktop/examples/num_4/num_4_recom_1_RAxML_bestTree.tree'
-
+    # tree_path = '/home/nehleh/Desktop/examples/num_4/num_4_Clonaltree.tree'
+    # genomefile = '/home/nehleh/Desktop/examples/num_4/num_4_recom_1_Wholegenome_4_1.fasta'
+    # xml_path = '/home/nehleh/PhyloCode/RecomPhyloHMM/bin/GTR_template.xml'
+    # recomLog = '/home/nehleh/Desktop/examples/num_4/num_4_recom_1_BaciSim_Log.txt'
+    # json_path = '/home/nehleh/PhyloCode/RecomPhyloHMM/bin/GTR_template.json'
+    # raxml_path = '/home/nehleh/Desktop/examples/num_4/num_4_recom_1_RAxML_bestTree.tree'
+    #
     path = os.getcwd()
 
     parser=argparse.ArgumentParser(description='''You did not specify any parameters. ''',epilog="""All's well that ends well.""")
 
 
 
-    # parser.add_argument('-t', "--clonaltree", type=str, default=path+'/Clonaltree.tree' , help='tree')
-    # parser.add_argument('-a', "--alignmentFile", type=str, default= path+'/', help='fasta file')
-    # parser.add_argument('-r', "--raxmltree", type=str, default= path+'/', help='raxmltree')
-    # parser.add_argument('-l', "--recomlogFile", type=str, default=path+'/BaciSim_Log.txt'  ,help='recombination log file')
-    # parser.add_argument('-x', "--xmlFile", default= path+'/template/GTR_template.xml' , type=str, help='xmlFile')
-    # parser.add_argument('-j', "--jsonFile", default= path+'/template/GTR_temp_partial.json', type=str, help='jsonFile')
-    #
-    # args = parser.parse_args()
-    #
-    # tree_path = args.clonaltree
-    # recomLog = args.recomlogFile
-    # genomefile = args.alignmentFile
-    # raxml_path = args.raxmltree
-    # xml_path = args.xmlFile
-    # json_path = args.jsonFile
+    parser.add_argument('-t', "--clonaltree", type=str, default=path+'/Clonaltree.tree' , help='tree')
+    parser.add_argument('-a', "--alignmentFile", type=str, default= path+'/', help='fasta file')
+    parser.add_argument('-r', "--raxmltree", type=str, default= path+'/', help='raxmltree')
+    parser.add_argument('-l', "--recomlogFile", type=str, default=path+'/BaciSim_Log.txt'  ,help='recombination log file')
+    parser.add_argument('-x', "--xmlFile", default= path+'/template/GTR_template.xml' , type=str, help='xmlFile')
+    parser.add_argument('-j', "--jsonFile", default= path+'/template/GTR_temp_partial.json', type=str, help='jsonFile')
+
+    args = parser.parse_args()
+
+    tree_path = args.clonaltree
+    recomLog = args.recomlogFile
+    genomefile = args.alignmentFile
+    raxml_path = args.raxmltree
+    xml_path = args.xmlFile
+    json_path = args.jsonFile
 
 
 
@@ -322,8 +389,8 @@ if __name__ == "__main__":
     realData = realData.transpose()
 
 
-    # make_fasta_gap(realData, clonal_tree, alignment)
-    # make_fasta_del(realData, clonal_tree, alignment)
+    make_fasta_gap(realData, clonal_tree, alignment)
+    make_fasta_del(realData, clonal_tree, alignment)
 
     # make_xml_seq(xml_path,clonal_tree)
     # make_xml_gap(realData, xml_path, clonal_tree)
@@ -331,10 +398,16 @@ if __name__ == "__main__":
     # make_CATG_file_certain(realData, tips_num, alignment_len, column, clonal_tree, 'BaciSim_Best_Two.catg')
 
 
-    gap_prob = [0.99,0.99,0.99,0.99]
-    normal_prob = [0.00001,0.00001,0.00001,0.00001]
+    gap_prob = np.array([0.999,0.999,0.999,0.999])
+    normal_prob = np.array([0.0001,0.0001,0.0001,0.0001])
+    nu = 0.08
 
     # make_xml_partial(realData, xml_path, clonal_tree,gap_prob,normal_prob)
-    make_CATG_file_partial(realData, tips_num, alignment_len, column, clonal_tree, 'BaciSim_partial_Two_00001_99_.catg', gap_prob, normal_prob)
+    # make_CATG_file_partial(realData, tips_num, alignment_len, column, clonal_tree, 'BaciSim_partial_Two_00001_99_.catg', gap_prob, normal_prob)
     # make_xml_partial_certain(realData, xml_path, clonal_tree)
-    # make_json_partial(realData, json_path, raxml_tree,gap_prob,normal_prob)
+
+    # make_json_partial(realData,json_path,raxml_tree,gap_prob,normal_prob,"BaciSim_partial.json")
+
+    make_json_partial_PSE(realData,json_path,raxml_tree,np.array([0.999,0.999,0.999,0.999]),np.array([0.0001,0.0001,0.0001,0.0001]),nu,"BaciSim_PSE_999.json")
+
+

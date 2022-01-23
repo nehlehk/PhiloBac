@@ -271,6 +271,21 @@ def update_mixture_partial(column,node,tipdata,posterior,status,node_order):
             tipdata[site,node.index,i] = rho
   return tipdata
 # **********************************************************************************************************************
+def update_mixture_partial_PSE(column,node,tipdata,posterior,status,node_order,nu):
+  for site in range(alignment_len):
+    dna = column[site]
+    my_number = give_index(dna[node.index])
+    if status == 2:
+        rho = give_rho(node,posterior,site,status,node_order)
+    if status == 8:
+        rho = give_rho(node,posterior,site,status,node_order)
+    for i in range(4):
+        if i == my_number:
+            tipdata[site,node.index,i] = 1 - (nu * rho)
+        else:
+            tipdata[site,node.index,i] = (nu * rho)/3
+  return tipdata
+# **********************************************************************************************************************
 def recom_output(recom_prob,tips_num,threshold,status):
     output = np.zeros((alignment_len,nodes_number))
     if status == 2:
@@ -715,7 +730,8 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
                 filter_fn = lambda n: hasattr(n, 'index') and n.index == X_child_order[h-1]
                 update_child = tree_updatePartial.find_node(filter_fn=filter_fn)
                 if update_child.is_leaf():
-                    update_mixture_partial(column, update_child, tipdata, p , status , 1)
+                    # update_mixture_partial(column, update_child, tipdata, p , status , 1)
+                    update_mixture_partial_PSE(column, update_child, tipdata, p, status, 1,nu[h-1])
 
             recom_prob = pd.DataFrame({'recom_nodes': r_node, 'target_node': t_node, 'posterior': posterior})
 
@@ -875,7 +891,7 @@ def make_CATG_file(tips_num,alignment,alignment_len,tipdata,column,tree,outputna
 # **********************************************************************************************************************
 def make_physher_json_partial(tipdata,tree,json_path,outputname,error_flag):
     my_tipdata = tipdata.transpose(1, 0, 2)
-    print(my_tipdata.shape)
+    # print(my_tipdata.shape)
     with open(json_path) as json_file:
         data = json.load(json_file)
         taxon = []
@@ -883,22 +899,15 @@ def make_physher_json_partial(tipdata,tree,json_path,outputname,error_flag):
         for i in range(my_tipdata.shape[0]):
             x = ''
             taxon.append(str(give_taxon(tree, i)))
-            for j in range(my_tipdata.shape[1]):
-                if error_flag == 1:
-                    if (my_tipdata[i, j, 0] < 0.5):
-                        my_tipdata[i, j, 0] = 0
-                    if (my_tipdata[i, j, 1] < 0.5):
-                        my_tipdata[i, j, 1] = 0
-                    if (my_tipdata[i, j, 2] < 0.5):
-                        my_tipdata[i, j, 2] = 0
-                    if (my_tipdata[i, j, 3] < 0.5):
-                        my_tipdata[i, j, 3] = 0
-                temp = ",".join(str(x) for x in (my_tipdata[i, j, :]))
-                if j == my_tipdata.shape[1]:
-                    x = x + temp
-                else:
-                    x = x + temp + ','
-            seq.append(x)
+            temp = my_tipdata[i].flatten()
+            seq.append((temp))
+            # for j in range(my_tipdata.shape[1]):
+            #     temp = ",".join(str(x) for x in (my_tipdata[i, j, :]))
+            #     if j == my_tipdata.shape[1]:
+            #         x = x + temp
+            #     else:
+            #         x = x + temp + ','
+            # seq.append(x)
 
         partial = dict(zip(taxon, seq))
         data['model']['sitepattern']['partials'] = partial
@@ -915,18 +924,20 @@ if __name__ == "__main__":
 
     # path = os.path.dirname(os.path.abspath(__file__))
     #
-    # tree_path = path+'/num_1_recom_1_RAxML_bestTree.tree'
-    # genomefile = path+'/num_1_recom_1_Wholegenome_1_1.fasta'
-    # baciSimLog = path+'/num_1_recom_1_BaciSim_Log.txt'
-    # clonal_path = path+'/num_1_Clonaltree.tree'
-    # json_path = '/home/nehleh/PhiloBacteria/bin'
+
+    path = '/home/nehleh/Desktop/sisters/mutiple_sisters/'
+    tree_path = path+'/num_1_RAxML_bestTree.tree'
+    genomefile = path+'/num_1_wholegenome_1.fasta'
+    baciSimLog = path+'/BaciSim_Log.txt'
+    clonal_path = path+'/clonaltree.tree'
+    json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
-    parser.add_argument('-t', "--raxmltree", type=str, required= True, help='tree')
-    parser.add_argument('-a', "--alignmentFile", type=str, required= True , help='fasta file')
-    parser.add_argument('-cl', "--clonaltreeFile", type=str, help='clonalclonaltreeFile tree from BaciSim')
-    parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
+    # parser.add_argument('-t', "--raxmltree", type=str, required= True, help='tree')
+    # parser.add_argument('-a', "--alignmentFile", type=str, required= True , help='fasta file')
+    # parser.add_argument('-cl', "--clonaltreeFile", type=str, help='clonalclonaltreeFile tree from BaciSim')
+    # parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
     parser.add_argument('-nu', "--nuHmm", type=float,default=0.033,help='nuHmm')
     parser.add_argument('-p', "--threshold", type=float, default=0.9, help='threshold')
     parser.add_argument('-f', "--frequencies", type=list, default= [0.2184,0.2606,0.3265,0.1946],help='frequencies')
@@ -940,8 +951,8 @@ if __name__ == "__main__":
 
     # parser.add_argument('-xml', "--xmlFile", type=str, default='/home/nehleh/PhiloBacteria/bin/template/GTR_template.xml' ,help='xmlFile')
 
-    tree_path = args.raxmltree
-    genomefile = args.alignmentFile
+    # tree_path = args.raxmltree
+    # genomefile = args.alignmentFile
     pi = args.frequencies
     rates = args.rates
     nu = args.nuHmm
@@ -949,7 +960,7 @@ if __name__ == "__main__":
     p_trans = args.transmat
     threshold = args.threshold
     # xml_path = args.xmlFile
-    json_path = args.jsonFile
+    # json_path = args.jsonFile
     initialstat = args.status
     simulation = args.simulation
 
@@ -957,6 +968,7 @@ if __name__ == "__main__":
     tree = Tree.get_from_path(tree_path, 'newick')
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
     nodes_number = len(tree.nodes())
+    # print("nodes_number:",nodes_number)
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
     set_index(tree,alignment)
@@ -969,17 +981,11 @@ if __name__ == "__main__":
 
     if initialstat.find('2') != -1:
         status = 2
-        p_start = np.array([0.99, 0.01])
-        p_trans = np.array([[0.999, 0.001],
-                            [0.001, 0.999]])
+        p_start = np.array([0.9, 0.1])
+        p_trans = np.array([[0.9999, 0.0001],
+                            [0.0001, 0.9999]])
 
         tipdata, posterior, hiddenStates, score, recom_prob, r_node, t_node, best_nu = phylohmm(tree,alignment_len,column,nu, p_start, p_trans,tips_num,status)
-
-
-        # print(recom_prob)
-
-        # if recom_prob['recom_nodes'][18] == 2:
-        #     print(recom_prob['posterior'][18][6150:6155])
 
         c_tree = Tree.get_from_path(tree_path, 'newick')
         set_index(c_tree,alignment)
@@ -989,10 +995,8 @@ if __name__ == "__main__":
         write_best_nu(best_nu,'PB_nu_two.txt')
 
         # make_CATG_file(tips_num, alignment, alignment_len, tipdata, column, tree, 'PB_Two.catg', 0)
-        # make_physher_json_partial(tipdata, tree, json_path, 'PB_two.json', 0)
+        make_physher_json_partial(tipdata, tree, json_path, 'PB_two.json', 0)
 
-        # make_CATG_file(tips_num, alignment, alignment_len, tipdata, column, tree, 'PB_Two_zero.catg',1)
-        make_physher_json_partial(tipdata,tree,json_path,'PB_two_zero.json',1)
 
         # # # ======================================= providing xml files for beast ============================================
         # make_beast_xml_partial(tipdata, c_tree, xml_path,'PB_Partial_two.xml')
@@ -1030,14 +1034,14 @@ if __name__ == "__main__":
 
 
     # if simulation == 1 :
-    #     clonal_path = args.clonaltreeFile
-    #     baciSimLog = args.recomlogFile
+    #     # clonal_path = args.clonaltreeFile
+    #     # baciSimLog = args.recomlogFile
     #     clonal_tree = Tree.get_from_path(clonal_path, 'newick')
     #     nodes_number_c = len(clonal_tree.nodes())
     #     set_index(clonal_tree,alignment)
     #     realData = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
-    #     # print(realData.shape)
-    #     # print(nodes_number_c)
+    #     print(realData.shape)
+    #     print("nodes_number_c:",nodes_number_c)
     #     # print(tree.as_ascii_plot(show_internal_node_labels=True))
     #     if initialstat.find('2') != -1:
     #         print(phyloHMMData2.shape)

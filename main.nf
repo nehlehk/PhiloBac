@@ -20,15 +20,14 @@ recom_range = Channel.value(1)
 params.xml = "${PWD}/bin/template/GTR_template.xml"
 params.json = "${PWD}/bin/template/GTR_temp_partial.json"
 
-
 params.genome = 10
 params.genomelen = '100000'
 params.recomlen = '600'
-params.recomrate = '0.01'
+params.recomrate = '0.015'
 params.tMRCA = '0.01'
-params.nu_sim = '0.03'
+params.nu_sim = '0.02'
 params.best = false
-params.method = 'pb'
+//params.method = 'pb'
 params.hmm_state = '2'
 params.nu_hmm = 0.033
 params.sim_stat = 0 //0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes
@@ -155,7 +154,7 @@ process Get_raxml_tree {
 process PhiloBacteria {
      publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_recom_${recom_range}_$filename" }
      maxForks 1
-     errorStrategy 'ignore'
+     //errorStrategy 'ignore'
 
      input:
         path Clonaltree
@@ -179,7 +178,7 @@ process PhiloBacteria {
         path 'PB_Log_eight.txt'     , emit: PB_Log_eight     , optional: true
         path 'PB_nu_eight.txt'      , emit: PB_nu_eight      , optional: true
         path 'PB_Two.catg'          , emit: PB_CATG_two      , optional: true
-        path 'PB_Two.json'          , emit: PB_JSON_two      , optional: true
+        path 'PB_two.json'          , emit: PB_JSON_two      , optional: true
         path 'PB_Two_zero.catg'     , emit: PB_CATG_two_zero , optional: true
         path 'PB_two_zero.json'     , emit: PB_JSON_two_zero , optional: true
 
@@ -203,15 +202,17 @@ process Make_BaciSim_GapDel {
         path MyRaxML
 
      output:
-        path 'Del_alignment.fasta' , emit: Del_alignment , optional: true
-        path 'Gap_alignment.fasta' , emit: Gap_alignment , optional: true
-        path 'OriginalSeq.xml' , emit: Original_XML , optional: true
-        path 'BaciSim_Gap.xml' , emit: BaciSim_Gap , optional: true
-        path 'BaciSim_Del.xml' , emit: BaciSim_Del , optional: true
-        path 'BaciSim_partial.xml' , emit: Partial_xml , optional: true
-        path 'BaciSim_partial_certian.xml' , emit: Partial_xml_certian , optional: true
-        path 'BaciSim_partial.json' , emit: Partial_json , optional: true
-        path 'BaciSim_Best_Two.catg' , emit: Certain_CATG , optional: true
+        path 'Del_alignment.fasta'      , emit: Del_alignment       , optional: true
+        path 'Gap_alignment.fasta'      , emit: Gap_alignment       , optional: true
+        //path 'BaciSim_partial.json'     , emit: Partial_json        , optional: true
+        path 'BaciSim_PSE_999.json'     , emit: BaciSim_PSE_999     , optional: true
+
+        //path 'OriginalSeq.xml' , emit: Original_XML , optional: true
+        //path 'BaciSim_Gap.xml' , emit: BaciSim_Gap , optional: true
+        //path 'BaciSim_Del.xml' , emit: BaciSim_Del , optional: true
+        //path 'BaciSim_partial.xml' , emit: Partial_xml , optional: true
+        //path 'BaciSim_partial_certian.xml' , emit: Partial_xml_certian , optional: true
+        //path 'BaciSim_Best_Two.catg' , emit: Certain_CATG , optional: true
 
      """
         BaciSim_GapDel.py -t ${Clonaltree} -a${Wholegenome}  -r${MyRaxML} -l${Recomlog} -x ${params.xml} -j ${params.json}
@@ -244,16 +245,17 @@ process Physher_partial {
      maxForks 1
 
      input:
-        path PB_JSON_two_zero
+        path PB_JSON_two
         val iteration
         val recom_range
+        val output
 
 
      output:
-         path 'physher_two_zero.txt' , emit: physher_two_txt
+         path output , emit: physher_txt
 
      """
-       physher  ${PB_JSON_two_zero}   >   physher_two_zero.txt
+       physher  ${PB_JSON_two}   >  ${output}
      """
 }
 
@@ -263,16 +265,16 @@ process Physher_tree {
      maxForks 1
 
      input:
-        path physher_two_txt
+        path physher_txt
         val iteration
         val recom_range
-
+        val output
 
      output:
-         path 'physherTree_two_zero.newick' , emit: physherTree_two
+         path output , emit: physherTree_two
 
      """
-       physher_result.py -t ${physher_two_txt} -o 'physherTree_two_zero.newick'
+       physher_result.py -t ${physher_txt} -o ${output}
      """
 }
 
@@ -483,6 +485,9 @@ process mergeTreeFiles {
 }
 
 
+
+
+
 process TreeCmp {
      publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_recom_${recom_range}_$filename" }
      maxForks 1
@@ -499,7 +504,7 @@ process TreeCmp {
          path 'TreeCmpResult.result' , emit: Comparison
 
      """
-       java -jar /home/nehleh/Documents/0_Research/Software/TreeCmp_v2.0-b76/bin/treeCmp.jar  -r ${Clonaltree}  -i ${allOtherTrees} -d qt pd rf ms um rfw gdu -o TreeCmpResult.result -W
+       java -jar treeCmp.jar  -r ${Clonaltree}  -i ${allOtherTrees} -d qt pd rf ms um rfw gdu -o TreeCmpResult.result -W
      """
 }
 
@@ -555,12 +560,16 @@ workflow Best {
             Get_raxml_tree_gap(Make_BaciSim_GapDel.out.Gap_alignment,iteration,recomRange)
             Get_raxml_tree_del(Make_BaciSim_GapDel.out.Del_alignment,iteration,recomRange)
         emit:
-            original = Make_BaciSim_GapDel.out.Original_XML
-            original_Gap_xml = Make_BaciSim_GapDel.out.BaciSim_Gap
-            original_Del_xml = Make_BaciSim_GapDel.out.BaciSim_Del
-            original_partial_xml = Make_BaciSim_GapDel.out.Partial_xml
-            original_certian_xml = Make_BaciSim_GapDel.out.Partial_xml_certian
-            certian_catg = Make_BaciSim_GapDel.out.Certain_CATG
+            GapRaxML = Get_raxml_tree_gap.out.GapRaxML
+            DelRaxML = Get_raxml_tree_del.out.DelRaxML
+//            Partial_json = Make_BaciSim_GapDel.out.Partial_json
+            BaciSim_PSE_999 = Make_BaciSim_GapDel.out.BaciSim_PSE_999
+//            original = Make_BaciSim_GapDel.out.Original_XML
+//            original_Gap_xml = Make_BaciSim_GapDel.out.BaciSim_Gap
+//            original_Del_xml = Make_BaciSim_GapDel.out.BaciSim_Del
+//            original_partial_xml = Make_BaciSim_GapDel.out.Partial_xml
+//            original_certian_xml = Make_BaciSim_GapDel.out.Partial_xml_certian
+//            certian_catg = Make_BaciSim_GapDel.out.Certain_CATG
 }
 
 
@@ -628,23 +637,27 @@ workflow ClonalFrameML {
 }
 
 
-
-workflow PB {
+workflow Physher {
         take:
-            clonaltree
-            recom_log
-            genome
-            raxml_tree
+            json_file
             iteration
             recomRange
+            output
 
         main:
-            PhiloBacteria(clonaltree,recom_log,genome,raxml_tree)
-            RaxmlNG_CATG(PhiloBacteria.out.PB_CATG_two,iteration,recomRange)
+            Physher_partial(json_file,iteration,recomRange)
+            Physher_tree(Physher_partial.out.physher_two_txt,iteration,recomRange)
         emit:
-            PBtree = RaxmlNG_CATG.out.CFMLtree
+            physherTree_two = Physher_tree.out.physherTree_two
 }
 
+
+
+include {   Physher_partial as physher_PSE_9        ; Physher_tree as p_tree_PSE_9 ;
+            Physher_partial as physher_PSE_9_0      ; Physher_tree as p_tree_PSE_9_0 ;
+            Physher_partial as physher_PSE_999      ; Physher_tree as p_tree_PSE_999 ;
+            Physher_partial as physher_PSE_999_0    ; Physher_tree as p_tree_PSE_999_0 ;
+            Physher_partial as physher_PB           ; Physher_tree as p_tree_PB }  from './Physher.nf'
 
 
 workflow {
@@ -660,9 +673,10 @@ workflow {
 
         if (params.best == true) {
             Best(Sim.out.genome,Sim.out.clonaltree,Get_raxml_tree.out.MyRaxML,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange)
-//             Beast(Best.out.original,'',Sim.out.iteration,Sim.out.recomRange)
-//             Beast(Best.out.original_partial_xml,'original_partial_',Sim.out.iteration,Sim.out.recomRange)
-//             Beast_cerain(Best.out.original_Gap_xml,'original_gap_',Sim.out.iteration,Sim.out.recomRange)
+            //Physher_partial(Best.out.Partial_json,Sim.out.iteration,Sim.out.recomRange,'physher_best_partial.txt')
+            //Physher_tree(Physher_partial.out.physher_txt,Sim.out.iteration,Sim.out.recomRange,'physherTree_best_partial.newick')
+            physher_PSE_999(Best.out.BaciSim_PSE_999,Sim.out.iteration,Sim.out.recomRange,'physher_PSE_999.txt')
+            p_tree_PSE_999(physher_PSE_999.out.physher_txt,Sim.out.iteration,Sim.out.recomRange,'physherTree_PSE_999.newick')
         }
         if (params.method =~ /cfml/) {
             ClonalFrameML(Sim.out.clonaltree,Sim.out.recom_log,Sim.out.genome,Get_raxml_tree.out.MyRaxML,Sim.out.iteration,Sim.out.recomRange)
@@ -672,9 +686,8 @@ workflow {
         }
         if (params.method =~ /pb/) {
             PhiloBacteria(Sim.out.clonaltree,Sim.out.recom_log,Sim.out.genome,Get_raxml_tree.out.MyRaxML)
-            //RaxmlNG_CATG(PhiloBacteria.out.PB_CATG_two,Sim.out.iteration,Sim.out.recomRange)
-            Physher_partial(PhiloBacteria.out.PB_JSON_two_zero,Sim.out.iteration,Sim.out.recomRange)
-            Physher_tree(Physher_partial.out.physher_two_txt,Sim.out.iteration,Sim.out.recomRange)
+            physher_PB(PhiloBacteria.out.PB_JSON_two,Sim.out.iteration,Sim.out.recomRange,'physher_PB.txt')
+            p_tree_PB(physher_PB.out.physher_txt,Sim.out.iteration,Sim.out.recomRange,'physherTree_PB.newick')
         }
 //         if (params.analyse == 0)  {
 //
@@ -685,9 +698,9 @@ workflow {
 //         }
 //
          if (params.analyse == 2)  {
-            mergeTreeFiles(ClonalFrameML.out.CFMLtree,Gubbins.out.GubbinsRescaletree,Physher_tree.out.physherTree_two,Sim.out.iteration,Sim.out.recomRange)
+            mergeTreeFiles(ClonalFrameML.out.CFMLtree,Gubbins.out.GubbinsRescaletree,p_tree_PB.out.physherTree_two,Sim.out.iteration,Sim.out.recomRange)
             TreeCmp(Sim.out.clonaltree,mergeTreeFiles.out.allOtherTrees,Sim.out.iteration,Sim.out.recomRange)
-            collectedCMP_tree = TreeCmp.out.Comparison.collectFile(name:"all_cmpTrees.result",storeDir:"${PWD}/Summary_Results", keepHeader:false , sort: false)
+            collectedCMP_tree = TreeCmp.out.Comparison.collectFile(name:"all_cmpTrees.result",storeDir:"${PWD}/Summary_Results", keepHeader:true , sort: false)
             TreeCmp_summary(collectedCMP_tree)
          }
     }
