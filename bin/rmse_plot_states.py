@@ -38,7 +38,7 @@ df2 = pd.read_csv(f2, sep=';', names=['CFML'], header=None)
 
 
 
-new = pd.concat([df,df1,df2], axis=1)
+new = pd.concat([df2,df1,df], axis=1)
 
 fig = plt.figure(figsize=(10,10))
 ax1 = fig.add_subplot(1, 1, 1)
