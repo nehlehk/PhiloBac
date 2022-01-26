@@ -22,7 +22,7 @@ params.json = "${PWD}/bin/template/GTR_temp_partial.json"
 
 params.genome = 10
 params.genomelen = '100000'
-params.recomlen = '600'
+params.recomlen = '100'
 params.recomrate = '0.015'
 params.tMRCA = '0.01'
 params.nu_sim = '0.02'
@@ -32,6 +32,7 @@ params.hmm_state = '2'
 params.nu_hmm = 0.033
 params.sim_stat = 0 //0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes
 params.sim_fixed = 1 //0 for fixed number and fixed len of recombination and 1 for normal/random way making recombination events.
+params.threshold = 0.5
 params.seq = "/home/nehleh/PhyloCode/Result/Results_13092021/num_4/num_4_Wholegenome_4.fasta"
 // params.outDir = 'Results'
 // params.help = false
@@ -163,6 +164,7 @@ process PhiloBacteria {
         path MyRaxML
 
      output:
+        path 'Recom_prob_two.csv'    , emit: recom_prob_two   , optional: true
         path 'PB_Partial_two.xml'   , emit: PB_Partial_two   , optional: true
         path 'PB_Gap_two.xml'       , emit: PB_Gap_two       , optional: true
         path 'PB_Del_two.xml'       , emit: PB_Del_two       , optional: true
@@ -182,7 +184,6 @@ process PhiloBacteria {
         path 'PB_Two_zero.catg'     , emit: PB_CATG_two_zero , optional: true
         path 'PB_two_zero.json'     , emit: PB_JSON_two_zero , optional: true
 
-//-xml ${params.xml}
 
      """
        phyloHmm.py -t ${MyRaxML}  -a ${Wholegenome}  -cl ${Clonaltree} -rl ${Recomlog} -nu ${params.nu_hmm} -st ${params.hmm_state} -sim ${params.simulation} -js ${params.json}
@@ -277,6 +278,32 @@ process Physher_tree {
        physher_result.py -t ${physher_txt} -o ${output}
      """
 }
+
+
+process PhiloBac_result {
+     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_recom_${recom_range}_$filename" }
+     maxForks 1
+     //errorStrategy 'ignore'
+
+     input:
+        path Clonaltree
+        tuple val(iteration), val(recom_range), path('Recomlog')
+        path Wholegenome
+        path recom_prob_two
+        path physherTree_two
+
+     output:
+        path 'RMSE_PB_two.csv'      , emit :PB_RMSE_two      , optional: true
+        path 'PB_Recom_two.jpeg'    , emit: PB_Recom_two     , optional: true
+        path 'PB_Log_two.txt'       , emit: PB_Log_two       , optional: true
+
+
+     """
+       PB_result.py  -cl ${Clonaltree}  -a ${Wholegenome}  -rl ${Recomlog}  -pb ${physherTree_two} -rp ${recom_prob_two} -st ${params.hmm_state} -sim ${params.simulation} -p ${params.threshold}
+
+     """
+}
+
 
 
 
@@ -504,9 +531,30 @@ process TreeCmp {
          path 'TreeCmpResult.result' , emit: Comparison
 
      """
-       java -jar treeCmp.jar  -r ${Clonaltree}  -i ${allOtherTrees} -d qt pd rf ms um rfw gdu -o TreeCmpResult.result -W
+       java -jar /home/nehleh/Documents/0_Research/Software/TreeCmp_v2.0-b76/bin/treeCmp.jar  -r ${Clonaltree}  -i ${allOtherTrees} -d qt pd rf ms um rfw gdu -o TreeCmpResult.result -W
      """
 }
+
+
+process RMSE_summary {
+
+     publishDir "${PWD}/Summary_Results", mode: "copy"
+     maxForks 1
+
+     input:
+      path  CollectedRMSE_CFML
+      path  CollectedRMSE_Gubb
+      path  CollectedRMSE_PB_two
+
+     output:
+         path 'RMSE_summary.jpeg' , emit: rmse_plot
+
+     """
+       rmse_plot_states.py -t rmse_PB_two.csv  -g rmse_Gubbins.csv -c rmse_CFML.csv
+
+     """
+}
+
 
 process TreeCmp_summary {
 
@@ -680,14 +728,20 @@ workflow {
         }
         if (params.method =~ /cfml/) {
             ClonalFrameML(Sim.out.clonaltree,Sim.out.recom_log,Sim.out.genome,Get_raxml_tree.out.MyRaxML,Sim.out.iteration,Sim.out.recomRange)
+            CollectedRMSE_CFML = ClonalFrameML.out.RMSE_CFML.collectFile(name:"rmse_CFML.csv",storeDir:"${PWD}/Summary_Results", keepHeader:false , sort: false)
+
         }
         if (params.method =~ /gub/) {
             Gubbins(Sim.out.genome,Sim.out.clonaltree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange)
+            CollectedRMSE_Gubb = Gubbins.out.RMSE_Gubbins.collectFile(name:"rmse_Gubbins.csv",storeDir:"${PWD}/Summary_Results", keepHeader:false , sort: false)
         }
         if (params.method =~ /pb/) {
             PhiloBacteria(Sim.out.clonaltree,Sim.out.recom_log,Sim.out.genome,Get_raxml_tree.out.MyRaxML)
             physher_PB(PhiloBacteria.out.PB_JSON_two,Sim.out.iteration,Sim.out.recomRange,'physher_PB.txt')
             p_tree_PB(physher_PB.out.physher_txt,Sim.out.iteration,Sim.out.recomRange,'physherTree_PB.newick')
+            PhiloBac_result(Sim.out.clonaltree,Sim.out.recom_log,Sim.out.genome,PhiloBacteria.out.recom_prob_two,p_tree_PB.out.physherTree_two)
+            CollectedRMSE_PB_two = PhiloBac_result.out.PB_RMSE_two.collectFile(name:"rmse_PB_two.csv",storeDir:"${PWD}/Summary_Results", keepHeader:false , sort: false)
+
         }
 //         if (params.analyse == 0)  {
 //
@@ -698,6 +752,7 @@ workflow {
 //         }
 //
          if (params.analyse == 2)  {
+            RMSE_summary(CollectedRMSE_CFML,CollectedRMSE_Gubb,CollectedRMSE_PB_two)
             mergeTreeFiles(ClonalFrameML.out.CFMLtree,Gubbins.out.GubbinsRescaletree,p_tree_PB.out.physherTree_two,Sim.out.iteration,Sim.out.recomRange)
             TreeCmp(Sim.out.clonaltree,mergeTreeFiles.out.allOtherTrees,Sim.out.iteration,Sim.out.recomRange)
             collectedCMP_tree = TreeCmp.out.Comparison.collectFile(name:"all_cmpTrees.result",storeDir:"${PWD}/Summary_Results", keepHeader:true , sort: false)
