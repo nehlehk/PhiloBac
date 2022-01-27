@@ -21,60 +21,17 @@ def recom_output(recom_prob,tips_num,threshold,status,nodes_number):
                     if (float(recom_prob['posterior1'][i][j]) >= threshold):
                         output[j, recom_prob['recom_nodes'][i]] = 1
             else:
-                # for j in range(alignment_len):
-                #     if (recom_prob['posterior'][i][j][1] >= mixtureProb):
-                #         output[j, recom_prob['target_node'][i]] = 1
                 for j in range(i + 1, len(recom_prob)):
                     if (recom_prob['recom_nodes'][i] == recom_prob['target_node'][j]) and (recom_prob['recom_nodes'][j] == recom_prob['target_node'][i]):
                         for k in range(alignment_len):
                             if ((float(recom_prob['posterior1'][i][k]) >= threshold) and (float(recom_prob['posterior1'][j][k]) >= threshold)):
                                 output[k, recom_prob['target_node'][i]] = 1
-                            # if (recom_prob['posterior'][i][k] < recom_prob['posterior'][j][k]):
-                            #   recom_prob['posterior'][i][k] = recom_prob['posterior'][j][k]
-                            # if (recom_prob['posterior'][i][k] >= mixtureProb):
-                            #     output[k, recom_prob['target_node'][i]] = 1
+
 
     return output
 # **********************************************************************************************************************
 def recom_resultFig_dm(pb_tree,recom_prob,tips_num,mixtureProb,status,outputname,nodes_number):
     output = recom_output(recom_prob,tips_num,mixtureProb,status,nodes_number)
-    # output = np.zeros((alignment_len, nodes_number))
-    # for i in range(len(recom_prob)):
-    #     r = recom_prob['recom_nodes'][i]
-    #     if isinstance(r, int):
-    #       if (r < tips_num):
-    #           for j in range(alignment_len):
-    #               if (recom_prob['posterior'][i][j] >= mixtureProb):
-    #                 output[j, r] = 1
-    #       else:
-    #           for j in range(i+1,len(recom_prob)):
-    #             r2 = recom_prob['recom_nodes'][j]
-    #             if isinstance(r2, int):
-    #               if (r == recom_prob['target_node'][j]) and (r2 == recom_prob['target_node'][i]) :
-    #                 for k in range(alignment_len):
-    #                   if ((recom_prob['posterior'][i][k] >= mixtureProb) and (recom_prob['posterior'][j][k] >= mixtureProb)):
-    #                       output[k, recom_prob['target_node'][i]] = 1
-    #     else:
-    #         for w in range(len(r)):
-    #             m_node = int(r[w])
-    #             if (m_node < tips_num):
-    #                 for k in range(alignment_len):
-    #                     if (recom_prob['posterior'][i][k] >= mixtureProb):
-    #                         output[k, m_node] = 1
-    #             # else:
-    #             #   for j in range(i+1,len(recom_prob)):
-    #             #     r2 = recom_prob['recom_nodes'][j]
-    #             #     if isinstance(r2, int) and (r2 > tips_num) and (r2 != m_node) :
-    #             #       if (m_node == recom_prob['target_node'][j]) and (r2 == recom_prob['target_node'][i]) :
-    #             #         print("m_node:",m_node)
-    #             #         print("r2:",r2)
-    #             #         for k in range(alignment_len):
-    #             #           # if (recom_prob['posterior'][i][k] < recom_prob['posterior'][j][k]):
-    #             #           #   recom_prob['posterior'][i][k] = recom_prob['posterior'][j][k]
-    #             #           if (recom_prob['posterior'][i][k] >= mixtureProb):
-    #             #             output[k, recom_prob['target_node'][i]] = 1
-
-
     fig = plt.figure(figsize=(tips_num + 9, tips_num / 2))
     color = ['red', 'green', 'purple', 'blue', 'black']
     clonaltree = Tree.get_from_path(pb_tree, 'newick')
@@ -204,7 +161,7 @@ if __name__ == "__main__":
         # print(realData[780:1000,1])
         # print(clonal_tree.as_ascii_plot(show_internal_node_labels=True))
         if initialstat.find('2') != -1:
-            rmse_real_philo2 = mean_squared_error(realData,phyloHMMData2,squared=True)
+            rmse_real_philo2 = mean_squared_error(realData,phyloHMMData2,squared=False)
             write_rmse(rmse_real_philo2, 'RMSE_PB_two.csv')
         if initialstat.find('8') != -1:
             # print(phyloHMMData8.shape)

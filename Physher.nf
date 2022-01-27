@@ -36,8 +36,6 @@ process Physher_tree {
      output:
          path output , emit: physherTree_two
 
-
-    //physher_result.py -t ${physher_two_txt} -o 'physherTree_two.newick'
      """
        physher_result.py -t ${physher_txt} -o ${output}
      """

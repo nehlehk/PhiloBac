@@ -105,13 +105,13 @@ def rescale_gubbtree(gubbins_tree,gubb_csv,alignment_len):
     #     myfile.close()
 # **********************************************************************************************************************
 if __name__ == "__main__":
-    #
-    # clonal_path = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/num_1_Clonaltree.tree'
-    # genomefile = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/num_1_recom_1_Wholegenome_1_1.fasta'
-    # baciSimLog = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/num_1_recom_1_BaciSim_Log.txt'
-    # gubbins_log = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/gubbins.recombination_predictions.gff'
-    # gubb_tree = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/gubbins.node_labelled.final_tree.tre'
-    # gubb_csv = '/home/nehleh/PhyloCode/RecomPhyloHMM/Results/num_1/gubbins.per_branch_statistics.csv'
+
+    # clonal_path = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_Clonaltree.tree'
+    # genomefile = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_Wholegenome_1_1.fasta'
+    # baciSimLog = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_BaciSim_Log.txt'
+    # gubbins_log = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_gubbins.recombination_predictions.gff'
+    # gubb_tree = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_gubbins.node_labelled.final_tree.tre'
+    # gubb_csv = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_gubbins.per_branch_statistics.csv'
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
     parser.add_argument('-cl', "--clonaltreeFile", type=str,  help='clona tree from BaciSim')
@@ -141,6 +141,8 @@ if __name__ == "__main__":
     GubbData, df = Gubbins_recombination(gubbins_log, gubbins_tree, nodes_num_g, alignment_len)
     Gubbins_resultFig(gubbins_tree, GubbData, tips_num, nodes_num_g, df)
     rescale_gubbtree(gubbins_tree, gubb_csv, alignment_len)
+    # print("GubbData[500]")
+    # print(GubbData[500])
 
 
     if simulation == 1:
@@ -150,6 +152,8 @@ if __name__ == "__main__":
         nodes_num_c = len(clonal_tree.nodes())
         set_index(clonal_tree)
         realData = real_recombination(baciSimLog, clonal_tree, nodes_num_c, alignment_len, tips_num)
+        # print("realData[500]")
+        # print(realData[500])
         rmse_real_CFML = mean_squared_error(realData, GubbData, squared=False)
         write_rmse(rmse_real_CFML, 'RMSE_Gubbins.csv')
 

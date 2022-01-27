@@ -21,11 +21,11 @@ params.xml = "${PWD}/bin/template/GTR_template.xml"
 params.json = "${PWD}/bin/template/GTR_temp_partial.json"
 
 params.genome = 10
-params.genomelen = '100000'
-params.recomlen = '100'
+params.genomelen = '10000'
+params.recomlen = '600'
 params.recomrate = '0.015'
 params.tMRCA = '0.01'
-params.nu_sim = '0.02'
+params.nu_sim = '0.05'
 params.best = false
 //params.method = 'pb'
 params.hmm_state = '2'

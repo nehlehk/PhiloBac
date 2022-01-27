@@ -11,7 +11,21 @@ from utility import *
 
 
 
+def set_index(tree):
+    for node in tree.postorder_node_iter():
+      node.index = -1
+      node.annotations.add_bound_attribute("index")
 
+    s = len(tree.leaf_nodes())
+    for node in tree.postorder_node_iter():
+      if not node.is_leaf():
+          node.index = s
+          node.label = str(node.index)
+          s += 1
+      else:
+          node.index = int(node.taxon.label)
+          node.label = str(node.index)
+# **********************************************************************************************************************
 def give_descendents_CFML(tree,node_label,result):
     if "NODE" in str(node_label):
         internal_recom_node = tree.find_node_with_label(node_label)
@@ -69,11 +83,11 @@ def CFML_recombination(CFML_recomLog,cfml_tree,tips_num):
 
 
 if __name__ == "__main__":
-    # genomefile = '/home/nehleh/Desktop/examples/num_1/num_1_recom_1_Wholegenome_1_1.fasta'
-    # baciSimLog = '/home/nehleh/Desktop/examples/num_1/num_1_recom_1_BaciSim_Log.txt'
-    # clonal_path = '/home/nehleh/Desktop/examples/num_1/num_1_Clonaltree.tree'
-    # cfml_log = '/home/nehleh/Desktop/examples/num_1/num_1_recom_1_CFML.importation_status.txt'
-    # cfml_tree = '/home/nehleh/Desktop/examples/num_1/num_1_recom_1_CFML.labelled_tree.newick'
+    # clonal_path = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_Clonaltree.tree'
+    # genomefile = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_Wholegenome_1_1.fasta'
+    # baciSimLog = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_BaciSim_Log.txt'
+    # cfml_log = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_CFML.importation_status.txt'
+    # cfml_tree = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_CFML.labelled_tree.newick'
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
     parser.add_argument('-cl', "--clonaltreeFile", type=str, help='tree')
@@ -95,23 +109,27 @@ if __name__ == "__main__":
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
-    set_index(cfml_tree,alignment)
+    set_index(cfml_tree)
     CFMLData = CFML_recombination(cfml_log,cfml_tree,tips_num)
     CFML_resultFig(cfml_tree, CFMLData)
-    print(nodes_number)
-    print(cfml_tree.as_ascii_plot(show_internal_node_labels=True))
+    # print("CFMLData[500]")
+    # print(CFMLData[500])
+    # print(nodes_number)
+    # print(cfml_tree.as_ascii_plot(show_internal_node_labels=True))
 
     if simulation == 1 :
         clonal_path = args.clonaltreeFile
         baciSimLog = args.recomlogFile
         clonal_tree = Tree.get_from_path(clonal_path, 'newick')
         nodes_number_c = len(clonal_tree.nodes())
-        set_index(clonal_tree,alignment)
+        set_index(clonal_tree)
         realData = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
+        # print("realData[500]")
+        # print(realData[500])
         rmse_real_CFML = mean_squared_error(realData, CFMLData, squared=False)
         write_rmse(rmse_real_CFML, 'RMSE_CFML.csv')
-        print(nodes_number_c)
-        print(clonal_tree.as_ascii_plot(show_internal_node_labels=True))
+        # print(nodes_number_c)
+        # print(clonal_tree.as_ascii_plot(show_internal_node_labels=True))
 
 
 

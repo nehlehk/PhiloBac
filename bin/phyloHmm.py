@@ -187,7 +187,7 @@ def set_tips_partial(column,tips_num):
         partial[site][tip][i] = 1
     return partial
 # **********************************************************************************************************************
-def computelikelihood_mixture_new(tree,alignment_len,column,tip_partial,model,tips_num):
+def computelikelihood_mixture(tree,alignment_len,column,tip_partial,model,tips_num):
     partial = np.zeros(((alignment_len,(2 * tips_num) -1, 4)))
     partial[:,0:tips_num,:] = tip_partial
     persite_ll = np.zeros(alignment_len)
@@ -203,29 +203,8 @@ def computelikelihood_mixture_new(tree,alignment_len,column,tip_partial,model,ti
 
     return persite_ll, partial
 # **********************************************************************************************************************
-def computelikelihood_mixture(tree,alignment_len,column,tip_partial,model,tips_num):
-    partial = np.zeros(((alignment_len,(2 * tips_num) -1, 4)))
-    partial[:,0:tips_num,:] = tip_partial
-    persite_ll = np.zeros(alignment_len)
-    uniqueCol = list(set(column))
-    for u in range(len(uniqueCol)):
-      indexes = []
-      indexes = [id for id, x in enumerate(column) if x == uniqueCol[u]]
-      site = indexes[0]
-      for node in tree.postorder_node_iter():
-          if not node.is_leaf():
-              children = node.child_nodes()
-              partial[site,node.index] = np.dot(model.p_matrix(children[0].edge_length), partial[site,children[0].index])
-              for i in range(1, len(children)):
-                  partial[site, node.index] *= np.dot(model.p_matrix(children[i].edge_length),partial[site,children[i].index])
-      partial[indexes,:,:] = partial[site,:,:]
-      p = np.dot(partial[site,tree.seed_node.index] , model.get_pi())
-      persite_ll[indexes] = np.log(p)
-    return persite_ll, partial
-# **********************************************************************************************************************
 def make_hmm_input_mixture(tree,alignment_len,column,tip_partial,model,tips_num):
-    # sitell, partial = computelikelihood_mixture(tree,alignment_len,column,tip_partial,model,tips_num)
-    sitell, partial = computelikelihood_mixture_new(tree, alignment_len, column, tip_partial, model, tips_num)
+    sitell, partial = computelikelihood_mixture(tree, alignment_len, column, tip_partial, model, tips_num)
 
     children = tree.seed_node.child_nodes()
     children_count = len(children)
@@ -314,18 +293,11 @@ def recom_output(recom_prob,tips_num,threshold,status):
                     if (recom_prob['posterior'][i][j][1] >= threshold):
                         output[j, recom_prob['recom_nodes'][i]] = 1
             else:
-                # for j in range(alignment_len):
-                #     if (recom_prob['posterior'][i][j][1] >= mixtureProb):
-                #         output[j, recom_prob['target_node'][i]] = 1
                 for j in range(i + 1, len(recom_prob)):
                     if (recom_prob['recom_nodes'][i] == recom_prob['target_node'][j]) and (recom_prob['recom_nodes'][j] == recom_prob['target_node'][i]):
                         for k in range(alignment_len):
                             if ((recom_prob['posterior'][i][k][1] >= threshold) and (recom_prob['posterior'][j][k][1] >= threshold)):
                                 output[k, recom_prob['target_node'][i]] = 1
-                            # if (recom_prob['posterior'][i][k] < recom_prob['posterior'][j][k]):
-                            #   recom_prob['posterior'][i][k] = recom_prob['posterior'][j][k]
-                            # if (recom_prob['posterior'][i][k] >= mixtureProb):
-                            #     output[k, recom_prob['target_node'][i]] = 1
     if status == 8:
         for i in range(len(recom_prob)):
             r = recom_prob['recom_nodes'][i]
@@ -477,43 +449,6 @@ def recom_resultFig_tipdata(tipdata,tips_num,mixtureProb,status,outputname):
 # **********************************************************************************************************************
 def recom_resultFig_dm(recom_prob,tips_num,mixtureProb,status,outputname):
     output = recom_output(recom_prob,tips_num,mixtureProb,status)
-    # output = np.zeros((alignment_len, nodes_number))
-    # for i in range(len(recom_prob)):
-    #     r = recom_prob['recom_nodes'][i]
-    #     if isinstance(r, int):
-    #       if (r < tips_num):
-    #           for j in range(alignment_len):
-    #               if (recom_prob['posterior'][i][j] >= mixtureProb):
-    #                 output[j, r] = 1
-    #       else:
-    #           for j in range(i+1,len(recom_prob)):
-    #             r2 = recom_prob['recom_nodes'][j]
-    #             if isinstance(r2, int):
-    #               if (r == recom_prob['target_node'][j]) and (r2 == recom_prob['target_node'][i]) :
-    #                 for k in range(alignment_len):
-    #                   if ((recom_prob['posterior'][i][k] >= mixtureProb) and (recom_prob['posterior'][j][k] >= mixtureProb)):
-    #                       output[k, recom_prob['target_node'][i]] = 1
-    #     else:
-    #         for w in range(len(r)):
-    #             m_node = int(r[w])
-    #             if (m_node < tips_num):
-    #                 for k in range(alignment_len):
-    #                     if (recom_prob['posterior'][i][k] >= mixtureProb):
-    #                         output[k, m_node] = 1
-    #             # else:
-    #             #   for j in range(i+1,len(recom_prob)):
-    #             #     r2 = recom_prob['recom_nodes'][j]
-    #             #     if isinstance(r2, int) and (r2 > tips_num) and (r2 != m_node) :
-    #             #       if (m_node == recom_prob['target_node'][j]) and (r2 == recom_prob['target_node'][i]) :
-    #             #         print("m_node:",m_node)
-    #             #         print("r2:",r2)
-    #             #         for k in range(alignment_len):
-    #             #           # if (recom_prob['posterior'][i][k] < recom_prob['posterior'][j][k]):
-    #             #           #   recom_prob['posterior'][i][k] = recom_prob['posterior'][j][k]
-    #             #           if (recom_prob['posterior'][i][k] >= mixtureProb):
-    #             #             output[k, recom_prob['target_node'][i]] = 1
-
-
     fig = plt.figure(figsize=(tips_num + 9, tips_num / 2))
     color = ['red', 'green', 'purple', 'blue', 'black']
     clonaltree = Tree.get_from_path(tree_path, 'newick')
@@ -778,14 +713,6 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
                 hiddenStates.append(hidden)
                 score.append(model.score(X))
 
-
-
-                # print("recombination_nodes[h - 1].index:", recombination_nodes[h - 1].index)
-                # print("first----p[4300]:", p[4300])
-                #
-                # print("child_order:",child_order)
-                # print("X_child_order:", X_child_order)
-
                 r_node.append(recombination_nodes[h - 1].index)
                 t_node.append(target_node.index)
 
@@ -795,14 +722,8 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
                 filter_fn = lambda n: hasattr(n, 'index') and n.index == recombination_nodes[h - 1].index
                 update_child = tree_updatePartial.find_node(filter_fn=filter_fn)
                 if update_child.is_leaf():
-                    # print("update_child:",update_child)
-                    # update_mixture_partial(column, update_child, tipdata, p , status , 1)
-                    # print("p[50]:", p[50])
-                    # print("p[1300]:",p[1300])
                     update_mixture_partial_PSE(column, update_child, tipdata, p, status, 1,nu[h-1])
 
-            # print("tipdata 50:", tipdata[50])
-            # print("tipdata 700:",tipdata[700])
 
         if status == 8 :
             # -------------- find best nu ----------------------
@@ -934,24 +855,11 @@ def make_CATG_file(tips_num,alignment,alignment_len,tipdata,column,tree,outputna
     for idx, name in enumerate(alignment):
         myfile.write(str(name).replace("'", ""))
         myfile.write('\t')
-    # for i in range(len(taxon)):
-    #     myfile.write(str(taxon[i].label))
-    #     myfile.write('\t')
     myfile.write('\n')
     for i in range(alignment_len):
         myfile.write(str(column[i]))
         myfile.write('\t')
         for j in range(tips_num):
-            # temp = tipdata[i,j]
-            # if (tipdata[i,j,0] >= threshold and tipdata[i,j,0] <1):
-            #     tipdata[i, j, 0] = 1
-            # if (tipdata[i, j, 1] >= threshold and tipdata[i,j,1] <1):
-            #     tipdata[i, j, 1] = 1
-            # if (tipdata[i, j, 2] >= threshold and tipdata[i,j,2] <1):
-            #     tipdata[i, j, 2] = 1
-            # if (tipdata[i, j, 3] >= threshold and tipdata[i,j,3] <1):
-            #     tipdata[i, j, 3] = 1
-            # else:
             if error_flag == 1:
                 if (tipdata[i,j,0] < 0.5):
                     tipdata[i, j, 0] = 0
@@ -981,14 +889,6 @@ def make_physher_json_partial(tipdata,tree,json_path,outputname,error_flag):
             x = x.replace("\n", "")
             x = x.replace("[","")
             x = x.replace("]","")
-            # print(x)
-            # seq.append((temp))
-            # for j in range(my_tipdata.shape[1]):
-            #     temp = ",".join(str(x) for x in (my_tipdata[i, j, :]))
-            #     if j == my_tipdata.shape[1]:
-            #         x = x + temp
-            #     else:
-            #         x = x + temp + ','
             seq.append(x)
 
         partial = dict(zip(taxon, seq))
@@ -1069,23 +969,14 @@ if __name__ == "__main__":
 
         tipdata, posterior, hiddenStates, score, recom_prob, r_node, t_node, best_nu = phylohmm(tree,alignment_len,column,nu, p_start, p_trans,tips_num,status)
 
-
         pd.options.display.max_colwidth = None
         recom_prob.to_csv('./Recom_prob_two.csv', sep=',', header=True)
         # print(recom_prob)
 
-
         c_tree = Tree.get_from_path(tree_path, 'newick')
         set_index(c_tree,alignment)
         # internal_plot(c_tree, posterior, hiddenStates, score, r_node, t_node,status)
-        # phyloHMMData2 = recom_resultFig_dm(recom_prob,tips_num,threshold,status,'PB_Recom_two.jpeg')
-        # phyloHMMData2 = recom_resultFig_tipdata(tipdata, tips_num, threshold, status, 'PB_Recom_two.jpeg')
-        # phyloHMM_log = phyloHMM_Log(c_tree, phyloHMMData2,'PB_Log_two.txt')
-
-
-
         write_best_nu(best_nu,'PB_nu_two.txt')
-
         # make_CATG_file(tips_num, alignment, alignment_len, tipdata, column, tree, 'PB_Two.catg', 0)
         make_physher_json_partial(tipdata, tree, json_path, 'PB_two.json', 0)
 
@@ -1114,8 +1005,8 @@ if __name__ == "__main__":
         c_tree = Tree.get_from_path(tree_path, 'newick')
         set_index(c_tree,alignment)
         # internal_plot(c_tree, posterior, hiddenStates, score, r_node, t_node, status)
-        phyloHMMData8 = recom_resultFig_dm(recom_prob,tips_num,threshold,status,'PB_Recom_eight.jpeg')
-        phyloHMM_log = phyloHMM_Log(c_tree, phyloHMMData8,'PB_Log_eight.txt')
+        # phyloHMMData8 = recom_resultFig_dm(recom_prob,tips_num,threshold,status,'PB_Recom_eight.jpeg')
+        # phyloHMM_log = phyloHMM_Log(c_tree, phyloHMMData8,'PB_Log_eight.txt')
         write_best_nu(best_nu,'PB_nu_eight.txt')
         # # ======================================= providing xml files for beast ============================================
         # make_beast_xml_partial(tipdata, c_tree, xml_path,'PB_Partial_eight.xml')
@@ -1124,22 +1015,3 @@ if __name__ == "__main__":
 
 
 
-
-    # if simulation == 1 :
-    #     # clonal_path = args.clonaltreeFile
-    #     # baciSimLog = args.recomlogFile
-    #     clonal_tree = Tree.get_from_path(clonal_path, 'newick')
-    #     nodes_number_c = len(clonal_tree.nodes())
-    #     set_index(clonal_tree,alignment)
-    #     realData = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
-    #     print(realData.shape)
-    #     print("nodes_number_c:",nodes_number_c)
-    #     # print(tree.as_ascii_plot(show_internal_node_labels=True))
-    #     if initialstat.find('2') != -1:
-    #         print(phyloHMMData2.shape)
-    #         rmse_real_philo2 = mean_squared_error(realData,phyloHMMData2,squared=False)
-    #         write_rmse(rmse_real_philo2, 'RMSE_PB_two.csv')
-    #     if initialstat.find('8') != -1:
-    #         print(phyloHMMData8.shape)
-    #         rmse_real_philo8 = mean_squared_error(realData,phyloHMMData8,squared=False)
-    #         write_rmse(rmse_real_philo8, 'RMSE_PB_eight.csv')
