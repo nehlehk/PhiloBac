@@ -7,6 +7,8 @@ import pandas as pd
 from dendropy import Tree
 import dendropy
 from sklearn.metrics import mean_squared_error
+from statsmodels.genmod.families.links import cloglog
+
 from utility import *
 from BCBio import GFF
 
@@ -26,11 +28,12 @@ def set_index(tree):
           node.index = int(node.taxon.label)
           node.label = str(node.index)
 # **********************************************************************************************************************
-def Gubbins_recombination(gubbins_log,gubbins_tree,nodes_number,alignment_len):
+def Gubbins_recombination(gubbins_log,gubbins_tree,clonal_tree,nodes_number,alignment_len):
     starts = []
     ends = []
     desc = []
     mrca = []
+    mrca_clonal = []
     gubb_handle = open(gubbins_log)
     for rec in GFF.parse(gubb_handle):
         for feature in rec.features:
@@ -38,11 +41,13 @@ def Gubbins_recombination(gubbins_log,gubbins_tree,nodes_number,alignment_len):
             ends.append(feature.location.end)
             d = str(feature.qualifiers['taxa'][0])
             kids = [int(s) for s in d.split() if s.isdigit()]
+            # print(kids)
             desc.append(kids)
             mrca.append(my_mrca(gubbins_tree, kids))
+            mrca_clonal.append(my_mrca(clonal_tree, kids))
     gubb_handle.close()
 
-    all_data = {'nodes': desc, 'start': starts, 'end': ends , 'mrca' :mrca }
+    all_data = {'nodes': desc, 'start': starts, 'end': ends , 'mrca' :mrca , 'mrca_clonal' :mrca_clonal}
     df = pd.DataFrame(all_data)
     # print(df)
 
@@ -50,7 +55,9 @@ def Gubbins_recombination(gubbins_log,gubbins_tree,nodes_number,alignment_len):
     for i in range(len(df)):
         s = int(df['start'][i])
         e = int(df['end'][i])
-        node = int(df['mrca'][i])
+        # node = int(df['mrca'][i])
+        node = int(df['mrca_clonal'][i])
+        # print(node)
         GubbData[s:e, node] = 1
 
     return GubbData,df
@@ -61,14 +68,17 @@ def Gubbins_resultFig(gubbins_tree,GubbData,tips_num,nodes_number,df):
     for i in range(nodes_number):
         ax = fig.add_subplot(nodes_number, 1, i + 1)
         if i >= tips_num:
-            d = (df.loc[df['mrca'] == i]['nodes'])
+            # d = (df.loc[df['mrca'] == i]['nodes'])
+            d = (df.loc[df['mrca_clonal'] == i]['nodes'])
             d = d.drop_duplicates()
             if len(d.values) > 0 :
                 txt = str(d.values[0])
             else:
                 desc = set()
-                txt = str(give_descendents(gubbins_tree, i, desc, tips_num))
+                # txt = str(give_descendents(gubbins_tree, i, desc, tips_num))
+                txt = str(give_descendents(clonal_tree, i, desc, tips_num))
                 # print(txt)
+            # print(i, txt)
             ax.plot(GubbData[:, i], label=str(i) + ' is mrca:' + txt, color=color[i % 5])
         else:
             ax.plot(GubbData[:, i], label=i, color=color[i % 5])
@@ -106,30 +116,35 @@ def rescale_gubbtree(gubbins_tree,gubb_csv,alignment_len):
 # **********************************************************************************************************************
 if __name__ == "__main__":
 
-    # clonal_path = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_Clonaltree.tree'
-    # genomefile = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_Wholegenome_1_1.fasta'
-    # baciSimLog = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_BaciSim_Log.txt'
-    # gubbins_log = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_gubbins.recombination_predictions.gff'
-    # gubb_tree = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_gubbins.node_labelled.final_tree.tre'
-    # gubb_csv = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_gubbins.per_branch_statistics.csv'
+    clonal_path = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_Clonaltree.tree'
+    genomefile = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_Wholegenome_1_1.fasta'
+    baciSimLog = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_BaciSim_Log.txt'
+    gubbins_log = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_gubbins.recombination_predictions.gff'
+    gubb_tree = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_gubbins.node_labelled.final_tree.tre'
+    gubb_csv = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_gubbins.per_branch_statistics.csv'
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
-    parser.add_argument('-cl', "--clonaltreeFile", type=str,  help='clona tree from BaciSim')
-    parser.add_argument('-a', "--alignmentFile", type=str,  help='fasta file')
-    parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
-    parser.add_argument('-gl', "--gubblogFile", type=str, help='Gubbins Log File')
-    parser.add_argument('-gt', "--gubbtreefile", type=str, help='Gubbins tree File')
-    parser.add_argument('-gs', "--gubbcsvfile", type=str, help='Gubbins per_branch_statistics csv File')
+    # parser.add_argument('-cl', "--clonaltreeFile", type=str,  help='clona tree from BaciSim')
+    # parser.add_argument('-a', "--alignmentFile", type=str,  help='fasta file')
+    # parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
+    # parser.add_argument('-gl', "--gubblogFile", type=str, help='Gubbins Log File')
+    # parser.add_argument('-gt', "--gubbtreefile", type=str, help='Gubbins tree File')
+    # parser.add_argument('-gs', "--gubbcsvfile", type=str, help='Gubbins per_branch_statistics csv File')
     parser.add_argument('-sim', "--simulation", type=int, default=1, help='1 for the simulation data and 0 for emprical sequence')
 
     args = parser.parse_args()
 
-
-    genomefile = args.alignmentFile
-    gubbins_log = args.gubblogFile
-    gubb_tree = args.gubbtreefile
-    gubb_csv = args.gubbcsvfile
+    # clonal_path = args.clonaltreeFile
+    # baciSimLog = args.recomlogFile
+    # genomefile = args.alignmentFile
+    # gubbins_log = args.gubblogFile
+    # gubb_tree = args.gubbtreefile
+    # gubb_csv = args.gubbcsvfile
     simulation = args.simulation
+
+    clonal_tree = Tree.get_from_path(clonal_path, 'newick')
+    set_index(clonal_tree)
+    nodes_num_c = len(clonal_tree.nodes())
 
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
     gubbins_tree = Tree.get_from_path(gubb_tree, 'newick')
@@ -138,22 +153,18 @@ if __name__ == "__main__":
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
 
-    GubbData, df = Gubbins_recombination(gubbins_log, gubbins_tree, nodes_num_g, alignment_len)
+    GubbData, df = Gubbins_recombination(gubbins_log, gubbins_tree,clonal_tree, nodes_num_g, alignment_len)
     Gubbins_resultFig(gubbins_tree, GubbData, tips_num, nodes_num_g, df)
     rescale_gubbtree(gubbins_tree, gubb_csv, alignment_len)
-    # print("GubbData[500]")
-    # print(GubbData[500])
+    # print("GubbData[15300]")
+    # print(GubbData[15300])
 
 
     if simulation == 1:
-        clonal_path = args.clonaltreeFile
-        baciSimLog = args.recomlogFile
-        clonal_tree = Tree.get_from_path(clonal_path, 'newick')
-        nodes_num_c = len(clonal_tree.nodes())
-        set_index(clonal_tree)
+
         realData = real_recombination(baciSimLog, clonal_tree, nodes_num_c, alignment_len, tips_num)
-        # print("realData[500]")
-        # print(realData[500])
+        # print("realData[15300]")
+        # print(realData[15300])
         rmse_real_CFML = mean_squared_error(realData, GubbData, squared=False)
         write_rmse(rmse_real_CFML, 'RMSE_Gubbins.csv')
 

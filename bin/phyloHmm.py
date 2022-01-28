@@ -875,7 +875,7 @@ def make_CATG_file(tips_num,alignment,alignment_len,tipdata,column,tree,outputna
         myfile.write('\n')
     myfile.close()
 # **********************************************************************************************************************
-def make_physher_json_partial(tipdata,tree,json_path,outputname,error_flag):
+def make_physher_json_partial(tipdata,tree,json_path,outputname):
     my_tipdata = tipdata.transpose(1, 0, 2)
     with open(json_path) as json_file:
         data = json.load(json_file)
@@ -907,12 +907,7 @@ if __name__ == "__main__":
     # path = os.path.dirname(os.path.abspath(__file__))
     #
 
-    # path = '/home/nehleh/Desktop/sisters/mutiple_sisters/'
-    # tree_path = path+'/num_1_RAxML_bestTree.tree'
-    # genomefile = path+'/num_1_wholegenome_1.fasta'
-    # baciSimLog = path+'/BaciSim_Log.txt'
-    # clonal_path = path+'/clonaltree.tree'
-    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
+
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
@@ -921,7 +916,7 @@ if __name__ == "__main__":
     parser.add_argument('-cl', "--clonaltreeFile", type=str, help='clonalclonaltreeFile tree from BaciSim')
     parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
     parser.add_argument('-nu', "--nuHmm", type=float,default=0.033,help='nuHmm')
-    parser.add_argument('-p', "--threshold", type=float, default=0.3, help='threshold')
+    parser.add_argument('-p', "--threshold", type=float, default=0.5, help='threshold')
     parser.add_argument('-f', "--frequencies", type=list, default= [0.2184,0.2606,0.3265,0.1946],help='frequencies')
     parser.add_argument('-r', "--rates", type=list, default= [0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ], help='rates')
     parser.add_argument('-s', "--startProb", type=list, default= [0.99, 0.01],help='frequencies')
@@ -957,15 +952,12 @@ if __name__ == "__main__":
     GTR_sample = GTR_model(rates, pi)
     column = get_DNA_fromAlignment(alignment)
 
-    # print(column)
-    # print(nodes_number)
-    # print(tree.as_ascii_plot(show_internal_node_labels=True))
-
     if initialstat.find('2') != -1:
         status = 2
         p_start = np.array([0.9, 0.1])
         p_trans = np.array([[0.9999, 0.0001],
                             [0.0001, 0.9999]])
+
 
         tipdata, posterior, hiddenStates, score, recom_prob, r_node, t_node, best_nu = phylohmm(tree,alignment_len,column,nu, p_start, p_trans,tips_num,status)
 
@@ -978,7 +970,8 @@ if __name__ == "__main__":
         # internal_plot(c_tree, posterior, hiddenStates, score, r_node, t_node,status)
         write_best_nu(best_nu,'PB_nu_two.txt')
         # make_CATG_file(tips_num, alignment, alignment_len, tipdata, column, tree, 'PB_Two.catg', 0)
-        make_physher_json_partial(tipdata, tree, json_path, 'PB_two.json', 0)
+
+        make_physher_json_partial(tipdata, tree, json_path, 'PB_two.json')
 
 
         # # # ======================================= providing xml files for beast ============================================
@@ -1012,6 +1005,3 @@ if __name__ == "__main__":
         # make_beast_xml_partial(tipdata, c_tree, xml_path,'PB_Partial_eight.xml')
         # make_beast_xml_gap(tipdata, tree, xml_path, 0.5,'PB_Gap_eight.xml')
         # make_beast_xml_delCol(recom_prob,tips_num,0.5,'PB_Del_eight.xml')
-
-
-
