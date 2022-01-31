@@ -52,15 +52,23 @@ def Gubbins_recombination(gubbins_log,gubbins_tree,clonal_tree,nodes_number,alig
     # print(df)
 
     GubbData = np.zeros((alignment_len, nodes_number))
+    rmseData = np.zeros((alignment_len, tips_num))
     for i in range(len(df)):
         s = int(df['start'][i])
         e = int(df['end'][i])
         # node = int(df['mrca'][i])
         node = int(df['mrca_clonal'][i])
-        # print(node)
+        # print((node))
+        if node >= tips_num:
+            internal_nodes = df['nodes'][i]
+            for j in range(len(internal_nodes)):
+                inode = int(internal_nodes[j])
+                rmseData[s:e, inode] = 1
+        else:
+            rmseData[s:e, node] = 1
         GubbData[s:e, node] = 1
 
-    return GubbData,df
+    return GubbData,rmseData,df
 # **********************************************************************************************************************
 def Gubbins_resultFig(gubbins_tree,GubbData,tips_num,nodes_number,df):
     fig = plt.figure(figsize=(tips_num + 9, tips_num / 2))
@@ -97,49 +105,33 @@ def rescale_gubbtree(gubbins_tree,gubb_csv,alignment_len):
     myfile = open('./Gubbinstree_rescale.tree', 'w')
     myfile.write(g)
     myfile.close()
-    #
-    # df = pd.read_csv(gubb_csv, sep='\t', engine='python')
-    # print(df)
-    # for node in gubbins_tree.levelorder_node_iter():
-    #     print(node.label)
-    #     if int(node.label) < tips_num:
-    #         temp = (df.loc[df['Node'] == str(node.label)]['Bases in Clonal Frame']).values[0]
-    #         node.edge_length = node.edge_length /temp
-    #         print(temp)
-    #     else:
-    #         node.edge_length = node.edge_length / alignment_len
-    #     myfile = open('./Gubbinstree_rescale.tree', 'w')
-    #     g_tree = gubbins_tree.as_string(schema="newick")
-    #     g = g_tree.replace('\n',"")
-    #     myfile.write(g_tree)
-    #     myfile.close()
 # **********************************************************************************************************************
 if __name__ == "__main__":
 
-    clonal_path = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_Clonaltree.tree'
-    genomefile = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_Wholegenome_1_1.fasta'
-    baciSimLog = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_BaciSim_Log.txt'
-    gubbins_log = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_gubbins.recombination_predictions.gff'
-    gubb_tree = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_gubbins.node_labelled.final_tree.tre'
-    gubb_csv = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_gubbins.per_branch_statistics.csv'
+    # clonal_path = '/home/nehleh/PhiloBacteria/Results/num_3/num_3_Clonaltree.tree'
+    # genomefile = '/home/nehleh/PhiloBacteria/Results/num_3/num_3_recom_1_Wholegenome_3_1.fasta'
+    # baciSimLog = '/home/nehleh/PhiloBacteria/Results/num_3/num_3_recom_1_BaciSim_Log.txt'
+    # gubbins_log = '/home/nehleh/PhiloBacteria/Results/num_3/num_3_recom_1_gubbins.recombination_predictions.gff'
+    # gubb_tree = '/home/nehleh/PhiloBacteria/Results/num_3/num_3_recom_1_gubbins.node_labelled.final_tree.tre'
+    # gubb_csv = '/home/nehleh/PhiloBacteria/Results/num_3/num_3_recom_1_gubbins.per_branch_statistics.csv'
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
-    # parser.add_argument('-cl', "--clonaltreeFile", type=str,  help='clona tree from BaciSim')
-    # parser.add_argument('-a', "--alignmentFile", type=str,  help='fasta file')
-    # parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
-    # parser.add_argument('-gl', "--gubblogFile", type=str, help='Gubbins Log File')
-    # parser.add_argument('-gt', "--gubbtreefile", type=str, help='Gubbins tree File')
-    # parser.add_argument('-gs', "--gubbcsvfile", type=str, help='Gubbins per_branch_statistics csv File')
+    parser.add_argument('-cl', "--clonaltreeFile", type=str,  help='clona tree from BaciSim')
+    parser.add_argument('-a', "--alignmentFile", type=str,  help='fasta file')
+    parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
+    parser.add_argument('-gl', "--gubblogFile", type=str, help='Gubbins Log File')
+    parser.add_argument('-gt', "--gubbtreefile", type=str, help='Gubbins tree File')
+    parser.add_argument('-gs', "--gubbcsvfile", type=str, help='Gubbins per_branch_statistics csv File')
     parser.add_argument('-sim', "--simulation", type=int, default=1, help='1 for the simulation data and 0 for emprical sequence')
 
     args = parser.parse_args()
 
-    # clonal_path = args.clonaltreeFile
-    # baciSimLog = args.recomlogFile
-    # genomefile = args.alignmentFile
-    # gubbins_log = args.gubblogFile
-    # gubb_tree = args.gubbtreefile
-    # gubb_csv = args.gubbcsvfile
+    clonal_path = args.clonaltreeFile
+    baciSimLog = args.recomlogFile
+    genomefile = args.alignmentFile
+    gubbins_log = args.gubblogFile
+    gubb_tree = args.gubbtreefile
+    gubb_csv = args.gubbcsvfile
     simulation = args.simulation
 
     clonal_tree = Tree.get_from_path(clonal_path, 'newick')
@@ -153,21 +145,20 @@ if __name__ == "__main__":
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
 
-    GubbData, df = Gubbins_recombination(gubbins_log, gubbins_tree,clonal_tree, nodes_num_g, alignment_len)
+    GubbData,rmse_Gubb, df = Gubbins_recombination(gubbins_log, gubbins_tree,clonal_tree, nodes_num_g, alignment_len)
     Gubbins_resultFig(gubbins_tree, GubbData, tips_num, nodes_num_g, df)
     rescale_gubbtree(gubbins_tree, gubb_csv, alignment_len)
-    # print("GubbData[15300]")
-    # print(GubbData[15300])
+    # print("GubbData[10000]")
+    # print(rmse_Gubb[10000])
 
 
     if simulation == 1:
-
-        realData = real_recombination(baciSimLog, clonal_tree, nodes_num_c, alignment_len, tips_num)
-        # print("realData[15300]")
-        # print(realData[15300])
-        rmse_real_CFML = mean_squared_error(realData, GubbData, squared=False)
+        realData,rmse_real = real_recombination(baciSimLog, clonal_tree, nodes_num_c, alignment_len, tips_num)
+        # print("realData[10000]")
+        # print(rmse_real[10000])
+        rmse_real_CFML = mean_squared_error(rmse_real, rmse_Gubb, squared=False)
         write_rmse(rmse_real_CFML, 'RMSE_Gubbins.csv')
-
+        # print(rmse_real_CFML)
 
 
 

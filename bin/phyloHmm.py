@@ -907,7 +907,19 @@ if __name__ == "__main__":
     # path = os.path.dirname(os.path.abspath(__file__))
     #
 
+    # path = '/home/nehleh/Desktop/sisters/mutiple_sisters/'
+    # tree_path = path+'/num_1_RAxML_bestTree.tree'
+    # genomefile = path+'/num_1_wholegenome_1.fasta'
+    # baciSimLog = path+'/BaciSim_Log.txt'
+    # clonal_path = path+'/clonaltree.tree'
+    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
+    # path = '/home/nehleh/PhiloBacteria/hpc/nu_02_recomLen_300/Results/num_1'
+    # tree_path = path+'/num_1_recom_1_RAxML_bestTree.tree'
+    # clonal_path = path+'/num_1_Clonaltree.tree'
+    # genomefile = path+'/num_1_recom_1_Wholegenome_1_1.fasta'
+    # baciSimLog = path+'/num_1_recom_1_BaciSim_Log.txt'
+    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
@@ -952,6 +964,10 @@ if __name__ == "__main__":
     GTR_sample = GTR_model(rates, pi)
     column = get_DNA_fromAlignment(alignment)
 
+    # print(column)
+    # print(nodes_number)
+    # print(tree.as_ascii_plot(show_internal_node_labels=True))
+
     if initialstat.find('2') != -1:
         status = 2
         p_start = np.array([0.9, 0.1])
@@ -970,7 +986,6 @@ if __name__ == "__main__":
         # internal_plot(c_tree, posterior, hiddenStates, score, r_node, t_node,status)
         write_best_nu(best_nu,'PB_nu_two.txt')
         # make_CATG_file(tips_num, alignment, alignment_len, tipdata, column, tree, 'PB_Two.catg', 0)
-
         make_physher_json_partial(tipdata, tree, json_path, 'PB_two.json')
 
 

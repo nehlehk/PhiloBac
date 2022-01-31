@@ -12,26 +12,33 @@ from BCBio import GFF
 import operator
 import itertools
 
-def recom_output(recom_prob,tips_num,threshold,status,nodes_number):
+def recom_output(pb_tree,recom_prob,tips_num,threshold,status,nodes_number):
     output = np.zeros((alignment_len,nodes_number))
+    rmsedata = np.zeros((alignment_len,tips_num))
     if status == 2:
         for i in range(len(recom_prob)):
             if (recom_prob['recom_nodes'][i] < tips_num):
                 for j in range(alignment_len):
                     if (float(recom_prob['posterior1'][i][j]) >= threshold):
                         output[j, recom_prob['recom_nodes'][i]] = 1
+                        rmsedata[j, recom_prob['recom_nodes'][i]] = 1
             else:
                 for j in range(i + 1, len(recom_prob)):
                     if (recom_prob['recom_nodes'][i] == recom_prob['target_node'][j]) and (recom_prob['recom_nodes'][j] == recom_prob['target_node'][i]):
                         for k in range(alignment_len):
                             if ((float(recom_prob['posterior1'][i][k]) >= threshold) and (float(recom_prob['posterior1'][j][k]) >= threshold)):
                                 output[k, recom_prob['target_node'][i]] = 1
+                                desc = set()
+                                d = give_descendents(pb_tree, int(recom_prob['target_node'][i]), desc,tips_num)
+                                # print(d)
+                                for elm in d:
+                                    rmsedata[k, int(elm)] = 1
 
 
-    return output
+    return output,rmsedata
 # **********************************************************************************************************************
 def recom_resultFig_dm(pb_tree,recom_prob,tips_num,mixtureProb,status,outputname,nodes_number):
-    output = recom_output(recom_prob,tips_num,mixtureProb,status,nodes_number)
+    output,rmsedata = recom_output(PB_tree,recom_prob,tips_num,mixtureProb,status,nodes_number)
     fig = plt.figure(figsize=(tips_num + 9, tips_num / 2))
     color = ['red', 'green', 'purple', 'blue', 'black']
     clonaltree = Tree.get_from_path(pb_tree, 'newick')
@@ -52,7 +59,7 @@ def recom_resultFig_dm(pb_tree,recom_prob,tips_num,mixtureProb,status,outputname
     ax.set_yticklabels([])
     plt.savefig(outputname)
 
-    return output
+    return output,rmsedata
 # **********************************************************************************************************************
 def phyloHMM_Log(c_tree,output,outputname):
     nodes = []
@@ -91,12 +98,12 @@ if __name__ == "__main__":
     # recomProb = path+'/Recom_prob_two.csv'
 
 
-    path = '/home/nehleh/PhiloBacteria/hpc/nu_02_recomLen_300/Results/num_1'
-    clonal_path = path+'/num_1_Clonaltree.tree'
-    genomefile = path+'/num_1_recom_1_Wholegenome_1_1.fasta'
-    baciSimLog = path+'/num_1_recom_1_BaciSim_Log.txt'
-    pb_tree = path+'/num_1_recom_1_physherTree_PB.newick'
-    recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.csv'
+    # path = '/home/nehleh/PhiloBacteria/Results/num_3'
+    # clonal_path = path+'/num_3_Clonaltree.tree'
+    # genomefile = path+'/num_3_recom_1_Wholegenome_3_1.fasta'
+    # baciSimLog = path+'/num_3_recom_1_BaciSim_Log.txt'
+    # pb_tree = path+'/num_3_recom_1_physherTree_PB.newick'
+    # recomProb = path+'/num_3_recom_1_Recom_prob_two.csv'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
@@ -112,9 +119,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
-    # genomefile = args.alignmentFile
-    # pb_tree = args.PBtreefile
-    # recomProb = args.recomProb
+    genomefile = args.alignmentFile
+    pb_tree = args.PBtreefile
+    recomProb = args.recomProb
     simulation = args.simulation
     initialstat = args.status
     threshold = args.threshold
@@ -140,14 +147,15 @@ if __name__ == "__main__":
     recom_prob['posterior1'] = recom_prob['posterior1'].str.split()
     # print(type(recom_prob['posterior1'][0][0]))
 
+    # print(recom_prob[['recom_nodes','target_node']])
 
 
     if initialstat.find('2') != -1:
         status = int(2)
-        phyloHMMData2 = recom_resultFig_dm(pb_tree, recom_prob, tips_num, threshold, status, 'PB_Recom_two.jpeg', nodes_num_pb)
+        phyloHMMData2,rmse_PB2 = recom_resultFig_dm(pb_tree, recom_prob, tips_num, threshold, status, 'PB_Recom_two.jpeg', nodes_num_pb)
         phyloHMM_log = phyloHMM_Log(PB_tree, phyloHMMData2, 'PB_Log_two.txt')
-        print("phyloHMMData2")
-        print(phyloHMMData2[500])
+        # print("rmse_PB2")
+        # print(rmse_PB2[2150])
 
 
     if initialstat.find('8') != -1:
@@ -157,21 +165,22 @@ if __name__ == "__main__":
 
 
     if simulation == 1 :
-        # clonal_path = args.clonaltreeFile
-        # baciSimLog = args.recomlogFile
+        clonal_path = args.clonaltreeFile
+        baciSimLog = args.recomlogFile
         clonal_tree = Tree.get_from_path(clonal_path, 'newick')
         nodes_number_c = len(clonal_tree.nodes())
         set_index(clonal_tree,alignment)
-        realData = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
-        print("realData")
-        print(realData[500])
+        realData,rmse_real = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
+        # print("rmse_real")
+        # print(rmse_real[2150])
         # print(clonal_tree.as_ascii_plot(show_internal_node_labels=True))
         if initialstat.find('2') != -1:
-            rmse_real_philo2 = mean_squared_error(realData,phyloHMMData2,squared=False)
+            rmse_real_philo2 = mean_squared_error(rmse_real,rmse_PB2,squared=False)
             write_rmse(rmse_real_philo2, 'RMSE_PB_two.csv')
+            # print(rmse_real_philo2)
         if initialstat.find('8') != -1:
             # print(phyloHMMData8.shape)
-            rmse_real_philo8 = mean_squared_error(realData,phyloHMMData8,squared=False)
+            rmse_real_philo8 = mean_squared_error(rmse_real,phyloHMMData8,squared=False)
             write_rmse(rmse_real_philo8, 'RMSE_PB_eight.csv')
 
 

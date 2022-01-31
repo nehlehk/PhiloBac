@@ -203,6 +203,7 @@ def make_clonaltree(tips_num,max_tMRCA):
 # **********************************************************************************************************************
 def real_recombination(recomLog,clonaltree,nodes_number,alignment_len,tips_num):
     realData = np.zeros((alignment_len,nodes_number))
+    rmseData = np.zeros((alignment_len, tips_num))
     df = pd.read_csv(recomLog,sep='\t', engine='python')
     recom = df.loc[df['status'] != 'clonal']
     recom = recom.reset_index(drop=True)
@@ -210,13 +211,19 @@ def real_recombination(recomLog,clonaltree,nodes_number,alignment_len,tips_num):
         s = recom['start'][i]
         t = recom['end'][i]
         nodes = nodes_separation(recom['nodes'][i])
-        for i in range(len(nodes)):
-            mynode = int(nodes[i])
+        for n in range(len(nodes)):
+            mynode = int(nodes[n])
             if mynode < tips_num:
                 mynode = int(give_taxon_index(clonaltree, mynode,tips_num))
+                rmseData[s:t, mynode] = 1
             realData[s:t,mynode] = 1
+            if mynode >= tips_num:
+                kids = set()
+                internal_nodes = give_descendents(clonaltree, mynode,kids,tips_num)
+                for k in internal_nodes:
+                    rmseData[s:t,int(k)] = 1
 
-    return realData
+    return realData,rmseData
 # **********************************************************************************************************************
 def write_rmse(rmse_value,filename):
     with open(filename, mode='w') as rmse_file:

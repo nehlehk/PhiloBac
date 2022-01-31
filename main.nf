@@ -13,7 +13,7 @@ c_file = file(params.test_file)
 // Genome = Channel.value(10)
 frequencies = Channel.value(' 0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
-iteration = Channel.value(1..1)
+iteration = Channel.value(1..5)
 recom_range = Channel.value(1)
 
 
@@ -21,16 +21,16 @@ params.xml = "${PWD}/bin/template/GTR_template.xml"
 params.json = "${PWD}/bin/template/GTR_temp_partial.json"
 
 params.genome = 10
-params.genomelen = '100000'
+params.genomelen = '50000'
 params.recomlen = '600'
-params.recomrate = '0.005'
+params.recomrate = '0.01'
 params.tMRCA = '0.01'
 params.nu_sim = '0.05'
 params.best = false
 //params.method = 'pb'
 params.hmm_state = '2'
 params.nu_hmm = 0.033
-params.sim_stat = 2 //0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes
+params.sim_stat = 1 //0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes
 params.sim_fixed = 1 //0 for fixed number and fixed len of recombination and 1 for normal/random way making recombination events.
 params.threshold = 0.5
 params.seq = "/home/nehleh/PhyloCode/Result/Results_13092021/num_4/num_4_Wholegenome_4.fasta"
