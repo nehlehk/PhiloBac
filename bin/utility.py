@@ -225,10 +225,10 @@ def real_recombination(recomLog,clonaltree,nodes_number,alignment_len,tips_num):
 
     return realData,rmseData
 # **********************************************************************************************************************
-def write_rmse(rmse_value,filename):
+def write_value(value,filename):
     with open(filename, mode='w') as rmse_file:
         rmse_writer = csv.writer(rmse_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        rmse_writer.writerow([rmse_value])
+        rmse_writer.writerow([value])
 # **********************************************************************************************************************
 def my_mrca(tree,tips):
   pdm = tree.phylogenetic_distance_matrix()

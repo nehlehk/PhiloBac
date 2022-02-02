@@ -20,6 +20,7 @@ import scipy.optimize as spo
 from scipy.optimize import Bounds
 import os
 import sys
+import time
 
 
 class phyloLL_HMM(hmmlearn.base._BaseHMM):
@@ -882,22 +883,16 @@ def make_physher_json_partial(tipdata,tree,json_path,outputname):
         taxon = []
         seq = []
         for i in range(my_tipdata.shape[0]):
-            x = ''
             taxon.append(str(give_taxon(tree, i)))
-            temp = str(my_tipdata[i].flatten())
-            x = ','.join(i for i in temp.split(' '))
-            x = x.replace("\n", "")
-            x = x.replace("[","")
-            x = x.replace("]","")
-            seq.append(x)
+            seq.append(np.array2string(my_tipdata[i].flatten(order='C'), separator=',')[1:-1].replace("\n", ""))
+            # seq.append(np.array2string(np.reshape(my_tipdata[i],my_tipdata[i].shape[0]*my_tipdata[i].shape[1]), separator=',')[1:-1])
 
         partial = dict(zip(taxon, seq))
         data['model']['sitepattern']['partials'] = partial
         data['model']['tree']['newick'] = str(tree)
 
-    jsonString = json.dumps(data, indent=4)
     jsonFile = open(outputname, "w")
-    jsonFile.write(jsonString)
+    json.dump(data, jsonFile, indent=4)
     jsonFile.close()
 # **********************************************************************************************************************
 
@@ -905,7 +900,7 @@ def make_physher_json_partial(tipdata,tree,json_path,outputname):
 if __name__ == "__main__":
 
     # path = os.path.dirname(os.path.abspath(__file__))
-    #
+
 
     # path = '/home/nehleh/Desktop/sisters/mutiple_sisters/'
     # tree_path = path+'/num_1_RAxML_bestTree.tree'
@@ -914,7 +909,7 @@ if __name__ == "__main__":
     # clonal_path = path+'/clonaltree.tree'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
-    # path = '/home/nehleh/PhiloBacteria/hpc/nu_02_recomLen_300/Results/num_1'
+    # path = '/home/nehleh/PhiloBacteria/Results/num_1'
     # tree_path = path+'/num_1_recom_1_RAxML_bestTree.tree'
     # clonal_path = path+'/num_1_Clonaltree.tree'
     # genomefile = path+'/num_1_recom_1_Wholegenome_1_1.fasta'
@@ -923,8 +918,8 @@ if __name__ == "__main__":
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
-    parser.add_argument('-t', "--raxmltree", type=str, required= True, help='tree')
-    parser.add_argument('-a', "--alignmentFile", type=str, required= True , help='fasta file')
+    parser.add_argument('-t', "--raxmltree", type=str, help='tree')
+    parser.add_argument('-a', "--alignmentFile", type=str, help='fasta file')
     parser.add_argument('-cl', "--clonaltreeFile", type=str, help='clonalclonaltreeFile tree from BaciSim')
     parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
     parser.add_argument('-nu', "--nuHmm", type=float,default=0.033,help='nuHmm')
@@ -942,6 +937,7 @@ if __name__ == "__main__":
 
     tree_path = args.raxmltree
     genomefile = args.alignmentFile
+    json_path = args.jsonFile
     pi = args.frequencies
     rates = args.rates
     nu = args.nuHmm
@@ -949,7 +945,6 @@ if __name__ == "__main__":
     p_trans = args.transmat
     threshold = args.threshold
     # xml_path = args.xmlFile
-    json_path = args.jsonFile
     initialstat = args.status
     simulation = args.simulation
 
@@ -974,19 +969,27 @@ if __name__ == "__main__":
         p_trans = np.array([[0.9999, 0.0001],
                             [0.0001, 0.9999]])
 
-
+        start = time.time()
         tipdata, posterior, hiddenStates, score, recom_prob, r_node, t_node, best_nu = phylohmm(tree,alignment_len,column,nu, p_start, p_trans,tips_num,status)
+        end = time.time()
+        print("time phylohmm",end - start)
 
         pd.options.display.max_colwidth = None
+        start = time.time()
         recom_prob.to_csv('./Recom_prob_two.csv', sep=',', header=True)
-        # print(recom_prob)
+        end = time.time()
+        print("time recom_prob.to_csv",end - start)
+
 
         c_tree = Tree.get_from_path(tree_path, 'newick')
         set_index(c_tree,alignment)
         # internal_plot(c_tree, posterior, hiddenStates, score, r_node, t_node,status)
         write_best_nu(best_nu,'PB_nu_two.txt')
         # make_CATG_file(tips_num, alignment, alignment_len, tipdata, column, tree, 'PB_Two.catg', 0)
+        start= time.time()
         make_physher_json_partial(tipdata, tree, json_path, 'PB_two.json')
+        end = time.time()
+        print("time make_physher_json_partial",end - start)
 
 
         # # # ======================================= providing xml files for beast ============================================

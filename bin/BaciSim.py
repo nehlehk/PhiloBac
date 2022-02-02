@@ -106,7 +106,7 @@ def recom_on_alignment(recom_num,recom_len,alignment_len,clonal_tree,node_labels
     gf = df.value_counts(['nodes','edge_len','nu']).reset_index(name='count')
     # print(gf)
     gf.to_csv('./Recombination_count.csv', sep='\t', header=True)
-    df.to_csv('./Recombination_Log.txt', sep='\t', header=True)
+    df[['nodes','start','end' ,'len','nu']].to_csv('./Recom_stat.csv', sep=',', header=True)
 
     return df,all_data
 # **********************************************************************************************************************

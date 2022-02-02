@@ -49,7 +49,8 @@ def Gubbins_recombination(gubbins_log,gubbins_tree,clonal_tree,nodes_number,alig
 
     all_data = {'nodes': desc, 'start': starts, 'end': ends , 'mrca' :mrca , 'mrca_clonal' :mrca_clonal}
     df = pd.DataFrame(all_data)
-    # print(df)
+    # print((df))
+    Gubb_recom_count = len(df)
 
     GubbData = np.zeros((alignment_len, nodes_number))
     rmseData = np.zeros((alignment_len, tips_num))
@@ -68,7 +69,7 @@ def Gubbins_recombination(gubbins_log,gubbins_tree,clonal_tree,nodes_number,alig
             rmseData[s:e, node] = 1
         GubbData[s:e, node] = 1
 
-    return GubbData,rmseData,df
+    return GubbData,rmseData,df,Gubb_recom_count
 # **********************************************************************************************************************
 def Gubbins_resultFig(gubbins_tree,GubbData,tips_num,nodes_number,df):
     fig = plt.figure(figsize=(tips_num + 9, tips_num / 2))
@@ -145,9 +146,10 @@ if __name__ == "__main__":
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
 
-    GubbData,rmse_Gubb, df = Gubbins_recombination(gubbins_log, gubbins_tree,clonal_tree, nodes_num_g, alignment_len)
+    GubbData,rmse_Gubb,df,Gubb_recom_count = Gubbins_recombination(gubbins_log, gubbins_tree,clonal_tree, nodes_num_g, alignment_len)
     Gubbins_resultFig(gubbins_tree, GubbData, tips_num, nodes_num_g, df)
     rescale_gubbtree(gubbins_tree, gubb_csv, alignment_len)
+    write_value(Gubb_recom_count,'Gubb_rcount.csv')
     # print("GubbData[10000]")
     # print(rmse_Gubb[10000])
 
@@ -157,8 +159,11 @@ if __name__ == "__main__":
         # print("realData[10000]")
         # print(rmse_real[10000])
         rmse_real_CFML = mean_squared_error(rmse_real, rmse_Gubb, squared=False)
-        write_rmse(rmse_real_CFML, 'RMSE_Gubbins.csv')
+        write_value(rmse_real_CFML, 'RMSE_Gubbins.csv')
         # print(rmse_real_CFML)
+        # recom_stat = pd.read_csv(open(baciSimStat, "r"), sep=',')
+        # num_recom_real = len(recom_stat)
+        # write_value(len(recom_stat), 'recom_count_baci.csv')
 
 
 

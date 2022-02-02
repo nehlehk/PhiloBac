@@ -73,7 +73,7 @@ def CFML_recombination(CFML_recomLog,cfml_tree,clonal_tree,tips_num):
     CFMLData = np.zeros((alignment_len, nodes_number))
     rmseData = np.zeros((alignment_len, tips_num))
     df = pd.read_csv(CFML_recomLog, sep='\t', engine='python')
-    # print(df)
+    CFML_recom_count=len(df)
     for i in range(len(df)):
         s = df['Beg'][i]
         e = df['End'][i]
@@ -90,7 +90,7 @@ def CFML_recombination(CFML_recomLog,cfml_tree,clonal_tree,tips_num):
         CFMLData[s:e, int(node)] = 1
 
 
-    return CFMLData,rmseData
+    return CFMLData,rmseData,CFML_recom_count
 # **********************************************************************************************************************
 
 
@@ -139,18 +139,16 @@ if __name__ == "__main__":
         my_index.append(node.index)
 
 
-    CFMLData,rmse_CFML = CFML_recombination(cfml_log,cfml_tree,clonal_tree,tips_num)
+    CFMLData,rmse_CFML,CFML_recom_count = CFML_recombination(cfml_log,cfml_tree,clonal_tree,tips_num)
     CFML_resultFig(cfml_tree, CFMLData)
+    write_value(CFML_recom_count,'CFML_rcount.csv')
+
+
     if simulation == 1 :
         realData , rmse_real = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
         rmse_real_CFML = mean_squared_error(rmse_real, rmse_CFML, squared=False)
-        write_rmse(rmse_real_CFML, 'RMSE_CFML.csv')
-        # print(rmse_real_CFML)
-        # print(nodes_number_c)
-        # print("real[4000]:")
-        # print("[4000]")
-        # print(rmse_real[4000])
-        # print(clonal_tree.as_ascii_plot(show_internal_node_labels=True))
+        write_value(rmse_real_CFML, 'RMSE_CFML.csv')
+
 
 
 

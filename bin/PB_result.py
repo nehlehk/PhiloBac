@@ -86,8 +86,6 @@ def phyloHMM_Log(c_tree,output,outputname):
 
     return df
 # **********************************************************************************************************************
-
-
 if __name__ == "__main__":
 
     # path = '/home/nehleh/Desktop/sisters/mutiple_sisters/'
@@ -98,12 +96,13 @@ if __name__ == "__main__":
     # recomProb = path+'/Recom_prob_two.csv'
 
 
-    # path = '/home/nehleh/PhiloBacteria/Results/num_3'
-    # clonal_path = path+'/num_3_Clonaltree.tree'
-    # genomefile = path+'/num_3_recom_1_Wholegenome_3_1.fasta'
-    # baciSimLog = path+'/num_3_recom_1_BaciSim_Log.txt'
-    # pb_tree = path+'/num_3_recom_1_physherTree_PB.newick'
-    # recomProb = path+'/num_3_recom_1_Recom_prob_two.csv'
+    # path = '/home/nehleh/PhiloBacteria/Results/num_1'
+    # clonal_path = path+'/num_1_Clonaltree.tree'
+    # genomefile = path+'/num_1_recom_1_Wholegenome_1_1.fasta'
+    # baciSimLog = path+'/num_1_recom_1_BaciSim_Log.txt'
+    # pb_tree = path+'/num_1_recom_1_physherTree_PB.newick'
+    # recomProb = path+'/num_1_recom_1_Recom_prob_two.csv'
+    # baciSimStat = path+'/num_1_recom_1_Recom_stat.csv'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
@@ -112,6 +111,7 @@ if __name__ == "__main__":
     parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
     parser.add_argument('-pb', "--PBtreefile", type=str, help='PBtree')
     parser.add_argument('-rp', "--recomProb", type=str, help='recomProb')
+    parser.add_argument('-rs', "--recomstat", type=str, help='recomstat')
     parser.add_argument('-sim', "--simulation", type=int, default=1, help='1 for the simulation data and 0 for emprical sequence')
     parser.add_argument('-st', "--status", type=str, default='2',help='2 for the two states hmm and 8 for eight states of hmm , 2,8 for both ')
     parser.add_argument('-p', "--threshold", type=float, default=0.5, help='threshold')
@@ -122,6 +122,7 @@ if __name__ == "__main__":
     genomefile = args.alignmentFile
     pb_tree = args.PBtreefile
     recomProb = args.recomProb
+    baciSimStat = args.recomstat
     simulation = args.simulation
     initialstat = args.status
     threshold = args.threshold
@@ -135,33 +136,27 @@ if __name__ == "__main__":
     alignment_len = alignment.sequence_size
 
 
-    # print(PB_tree.as_ascii_plot(show_internal_node_labels=True))
 
-
-    # f = open('/home/nehleh/Desktop/sisters/mutiple_sisters/Recom_prob_two.csv', "r")
-
-    f = open(recomProb,"r")
-    recom_prob = pd.read_csv(f, sep=',')
-    recom_prob['posterior1'] = recom_prob['posterior1'].str.replace("[","")
-    recom_prob['posterior1'] = recom_prob['posterior1'].str.replace("]","")
-    recom_prob['posterior1'] = recom_prob['posterior1'].str.split()
-    # print(type(recom_prob['posterior1'][0][0]))
-
-    # print(recom_prob[['recom_nodes','target_node']])
-
+    recom_prob = pd.read_csv(open(recomProb,"r"), sep=',')
+    # recom_prob['posterior1'] = recom_prob['posterior1'].str.replace("[","")
+    # recom_prob['posterior1'] = recom_prob['posterior1'].str.replace("]","")
+    recom_prob['posterior1'] = (recom_prob['posterior1'].str)[1:-1]
+    recom_prob['posterior1'] = (recom_prob['posterior1'].str.split())
 
     if initialstat.find('2') != -1:
         status = int(2)
         phyloHMMData2,rmse_PB2 = recom_resultFig_dm(pb_tree, recom_prob, tips_num, threshold, status, 'PB_Recom_two.jpeg', nodes_num_pb)
         phyloHMM_log = phyloHMM_Log(PB_tree, phyloHMMData2, 'PB_Log_two.txt')
-        # print("rmse_PB2")
-        # print(rmse_PB2[2150])
+        # print(phyloHMM_log)
+        recom_count_pb2= len(phyloHMM_log)
+        write_value(len(phyloHMM_log),'PB_rcount_two.csv')
 
 
     if initialstat.find('8') != -1:
         status = 8
         phyloHMMData8 = recom_resultFig_dm(pb_tree, recom_prob, tips_num, threshold, status, 'PB_Recom_eight.jpeg', nodes_num_pb)
         phyloHMM_log = phyloHMM_Log(PB_tree, phyloHMMData8, 'PB_Log_eight.txt')
+
 
 
     if simulation == 1 :
@@ -171,17 +166,21 @@ if __name__ == "__main__":
         nodes_number_c = len(clonal_tree.nodes())
         set_index(clonal_tree,alignment)
         realData,rmse_real = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
-        # print("rmse_real")
-        # print(rmse_real[2150])
-        # print(clonal_tree.as_ascii_plot(show_internal_node_labels=True))
+
+
+        recom_stat = pd.read_csv(open(baciSimStat, "r"), sep=',')
+        num_recom_real = len(recom_stat)
+        write_value(len(recom_stat), 'baci_rcount.csv')
+
+
         if initialstat.find('2') != -1:
             rmse_real_philo2 = mean_squared_error(rmse_real,rmse_PB2,squared=False)
-            write_rmse(rmse_real_philo2, 'RMSE_PB_two.csv')
+            write_value(rmse_real_philo2, 'RMSE_PB_two.csv')
             # print(rmse_real_philo2)
         if initialstat.find('8') != -1:
             # print(phyloHMMData8.shape)
             rmse_real_philo8 = mean_squared_error(rmse_real,phyloHMMData8,squared=False)
-            write_rmse(rmse_real_philo8, 'RMSE_PB_eight.csv')
+            write_value(rmse_real_philo8, 'RMSE_PB_eight.csv')
 
 
 
