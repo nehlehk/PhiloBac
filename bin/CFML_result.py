@@ -90,7 +90,7 @@ def CFML_recombination(CFML_recomLog,cfml_tree,clonal_tree,tips_num):
         CFMLData[s:e, int(node)] = 1
 
 
-    return CFMLData,rmseData,CFML_recom_count
+    return CFMLData,rmseData,CFML_recom_count,df
 # **********************************************************************************************************************
 
 
@@ -139,9 +139,10 @@ if __name__ == "__main__":
         my_index.append(node.index)
 
 
-    CFMLData,rmse_CFML,CFML_recom_count = CFML_recombination(cfml_log,cfml_tree,clonal_tree,tips_num)
+    CFMLData,rmse_CFML,CFML_recom_count,df = CFML_recombination(cfml_log,cfml_tree,clonal_tree,tips_num)
     CFML_resultFig(cfml_tree, CFMLData)
     write_value(CFML_recom_count,'CFML_rcount.csv')
+    (df['End']-df['Beg']).to_csv('CFML_delta.csv', index=False , header = ['length'])
 
 
     if simulation == 1 :

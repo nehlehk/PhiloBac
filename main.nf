@@ -293,13 +293,15 @@ process PhiloBac_result {
         path physherTree_two
         tuple val(iteration), val(recom_range), path ('Recomstat')
 
+
      output:
         path 'RMSE_PB_two.csv'      , emit :PB_RMSE_two      , optional: true
         path 'PB_Recom_two.jpeg'    , emit: PB_Recom_two     , optional: true
         path 'PB_Log_two.txt'       , emit: PB_Log_two       , optional: true
         path 'PB_rcount_two.csv'    , emit: PB_rcount_two    , optional: true
-        path 'baci_rcount.csv'      , emit: Baci_rcount       , optional: true
-
+        path 'baci_rcount.csv'      , emit: Baci_rcount      , optional: true
+        path 'baci_delta.csv'       , emit: Baci_Delta       , optional: true
+        path 'PB_delta_two.csv'     , emit: PB_Delta_two     , optional: true
 
      """
        PB_result.py  -cl ${Clonaltree}  -a ${Wholegenome}  -rl ${Recomlog}  -pb ${physherTree_two} -rp ${recom_prob_two} -st ${params.hmm_state} -sim ${params.simulation} -p ${params.threshold} -rs ${Recomstat}
@@ -389,7 +391,8 @@ process CFML_result {
      output:
         path 'CFML_Recombination.jpeg' , emit: CFMLFig
         path 'RMSE_CFML.csv'           , emit : RMSE_CFML  ,optional: true
-        path 'CFML_rcount.csv'          , emit: CFML_rcount ,optional: true
+        path 'CFML_rcount.csv'         , emit: CFML_rcount ,optional: true
+        path 'CFML_delta.csv'          , emit: CFML_delta  ,optional: true
 
      """
        CFML_result.py  -cl ${Clonaltree}  -a ${Wholegenome} -cfl ${CFML_recom}  -cft ${CFMLtree}  -rl ${Recomlog} -sim ${params.simulation}
@@ -433,6 +436,7 @@ process Gubbins_result {
         path 'RMSE_Gubbins.csv'              , emit: Rmse_Gubbins, optional: true
         path 'Gubbinstree_rescale.tree'      , emit: GubbinsRescaletree
         path 'Gubb_rcount.csv'               , emit: Gubb_rcount, optional: true
+        path 'Gubbins_delta.csv'             , emit: Gubb_delta, optional: true
 
 
     """
@@ -582,6 +586,25 @@ process RecomCount {
      """
 }
 
+process Delta_Summary {
+
+     publishDir "${PWD}/Summary_Results", mode: "copy"
+     maxForks 1
+
+     input:
+      path  CollectedDelta_Baci
+      path  CollectedDelta_PB_two
+      path  CollectedDelta_Gubb
+      path  CollectedDelta_CFML
+
+     output:
+         path 'delta_scatter.jpeg' , emit: delta_scatter , optional: true
+
+     """
+       delta_plot.py  -t delta_PB_two.csv  -b delta_baci.csv  -c delta_CFML.csv  -g delta_Gubbins.csv
+     """
+}
+
 
 process TreeCmp_summary {
 
@@ -662,6 +685,7 @@ workflow Gubbins {
             RMSE_Gubbins = Gubbins_result.out.Rmse_Gubbins
             GubbinsRescaletree = Gubbins_result.out.GubbinsRescaletree
             Rcount_Gubbins = Gubbins_result.out.Gubb_rcount
+            Delta_Gubbins = Gubbins_result.out.Gubb_delta
 
 }
 
@@ -711,6 +735,7 @@ workflow ClonalFrameML {
             CFMLtree = CFML.out.CFMLtree
             RMSE_CFML = CFML_result.out.RMSE_CFML
             Rcount_CFML = CFML_result.out.CFML_rcount
+            Delta_CFML = CFML_result.out.CFML_delta
 }
 
 
@@ -759,12 +784,14 @@ workflow {
             ClonalFrameML(Sim.out.clonaltree,Sim.out.recom_log,Sim.out.genome,Get_raxml_tree.out.MyRaxML,Sim.out.iteration,Sim.out.recomRange)
             CollectedRMSE_CFML = ClonalFrameML.out.RMSE_CFML.collectFile(name:"rmse_CFML.csv",storeDir:"${PWD}/Summary_Results", keepHeader:false , sort: false)
             CollectedRcount_CFML = ClonalFrameML.out.Rcount_CFML.collectFile(name:"rcount_CFML.csv",storeDir:"${PWD}/Summary_Results", keepHeader:false , sort: false)
+            CollectedDelta_CFML = ClonalFrameML.out.Delta_CFML.collectFile(name:"delta_CFML.csv",storeDir:"${PWD}/Summary_Results", keepHeader:true , sort: false)
 
         }
         if (params.method =~ /gub/) {
             Gubbins(Sim.out.genome,Sim.out.clonaltree,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange)
             CollectedRMSE_Gubb = Gubbins.out.RMSE_Gubbins.collectFile(name:"rmse_Gubbins.csv",storeDir:"${PWD}/Summary_Results", keepHeader:false , sort: false)
             CollectedRcount_Gubb = Gubbins.out.Rcount_Gubbins.collectFile(name:"rcount_Gubbins.csv",storeDir:"${PWD}/Summary_Results", keepHeader:false , sort: false)
+            CollectedDelta_Gubb = Gubbins.out.Delta_Gubbins.collectFile(name:"delta_Gubbins.csv",storeDir:"${PWD}/Summary_Results", keepHeader:true , sort: false)
         }
         if (params.method =~ /pb/) {
             PhiloBacteria(Sim.out.clonaltree,Sim.out.recom_log,Sim.out.genome,Get_raxml_tree.out.MyRaxML)
@@ -774,7 +801,10 @@ workflow {
             CollectedRMSE_PB_two = PhiloBac_result.out.PB_RMSE_two.collectFile(name:"rmse_PB_two.csv",storeDir:"${PWD}/Summary_Results", keepHeader:false , sort: false)
             CollectedRcount_Baci = PhiloBac_result.out.Baci_rcount.collectFile(name:"rcount_baci.csv",storeDir:"${PWD}/Summary_Results", keepHeader:false , sort: false)
             CollectedRcount_PB_two = PhiloBac_result.out.PB_rcount_two.collectFile(name:"rcount_PB_two.csv",storeDir:"${PWD}/Summary_Results", keepHeader:false , sort: false)
+            CollectedDelta_Baci = PhiloBac_result.out.Baci_Delta.collectFile(name:"delta_baci.csv",storeDir:"${PWD}/Summary_Results", keepHeader:true , sort: false)
+            CollectedDelta_PB_two = PhiloBac_result.out.PB_Delta_two.collectFile(name:"delta_PB_two.csv",storeDir:"${PWD}/Summary_Results", keepHeader:true , sort: false)
         }
+
 //         if (params.analyse == 0)  {
 //
 //         }
@@ -786,6 +816,7 @@ workflow {
          if (params.analyse == 2)  {
             RMSE_summary(CollectedRMSE_CFML,CollectedRMSE_Gubb,CollectedRMSE_PB_two)
             RecomCount(CollectedRcount_Baci,CollectedRcount_PB_two,CollectedRcount_Gubb,CollectedRcount_CFML)
+            Delta_Summary(CollectedDelta_Baci,CollectedDelta_PB_two,CollectedDelta_Gubb,CollectedDelta_CFML)
             mergeTreeFiles(ClonalFrameML.out.CFMLtree,Gubbins.out.GubbinsRescaletree,p_tree_PB.out.physherTree_two,Sim.out.iteration,Sim.out.recomRange)
             TreeCmp(Sim.out.clonaltree,mergeTreeFiles.out.allOtherTrees,Sim.out.iteration,Sim.out.recomRange)
             collectedCMP_tree = TreeCmp.out.Comparison.collectFile(name:"all_cmpTrees.result",storeDir:"${PWD}/Summary_Results", keepHeader:true , sort: false)

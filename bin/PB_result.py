@@ -96,13 +96,13 @@ if __name__ == "__main__":
     # recomProb = path+'/Recom_prob_two.csv'
 
 
-    # path = '/home/nehleh/PhiloBacteria/Results/num_1'
-    # clonal_path = path+'/num_1_Clonaltree.tree'
-    # genomefile = path+'/num_1_recom_1_Wholegenome_1_1.fasta'
-    # baciSimLog = path+'/num_1_recom_1_BaciSim_Log.txt'
-    # pb_tree = path+'/num_1_recom_1_physherTree_PB.newick'
-    # recomProb = path+'/num_1_recom_1_Recom_prob_two.csv'
-    # baciSimStat = path+'/num_1_recom_1_Recom_stat.csv'
+    # path = '/home/nehleh/PhiloBacteria/Results/num_20'
+    # clonal_path = path+'/num_20_Clonaltree.tree'
+    # genomefile = path+'/num_20_recom_1_Wholegenome_20_1.fasta'
+    # baciSimLog = path+'/num_20_recom_1_BaciSim_Log.txt'
+    # pb_tree = path+'/num_20_recom_1_physherTree_PB.newick'
+    # recomProb = path+'/num_20_recom_1_Recom_prob_two.csv'
+    # baciSimStat = path+'/num_20_recom_1_Recom_stat.csv'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
@@ -138,8 +138,6 @@ if __name__ == "__main__":
 
 
     recom_prob = pd.read_csv(open(recomProb,"r"), sep=',')
-    # recom_prob['posterior1'] = recom_prob['posterior1'].str.replace("[","")
-    # recom_prob['posterior1'] = recom_prob['posterior1'].str.replace("]","")
     recom_prob['posterior1'] = (recom_prob['posterior1'].str)[1:-1]
     recom_prob['posterior1'] = (recom_prob['posterior1'].str.split())
 
@@ -150,6 +148,7 @@ if __name__ == "__main__":
         # print(phyloHMM_log)
         recom_count_pb2= len(phyloHMM_log)
         write_value(len(phyloHMM_log),'PB_rcount_two.csv')
+        phyloHMM_log[['len']].to_csv('PB_delta_two.csv', index=False)
 
 
     if initialstat.find('8') != -1:
@@ -169,8 +168,11 @@ if __name__ == "__main__":
 
 
         recom_stat = pd.read_csv(open(baciSimStat, "r"), sep=',')
+        # print(recom_stat)
         num_recom_real = len(recom_stat)
         write_value(len(recom_stat), 'baci_rcount.csv')
+        recom_stat[['len']].to_csv('baci_delta.csv' , index=False)
+
 
 
         if initialstat.find('2') != -1:

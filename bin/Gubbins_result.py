@@ -34,11 +34,13 @@ def Gubbins_recombination(gubbins_log,gubbins_tree,clonal_tree,nodes_number,alig
     desc = []
     mrca = []
     mrca_clonal = []
+    length = []
     gubb_handle = open(gubbins_log)
     for rec in GFF.parse(gubb_handle):
         for feature in rec.features:
             starts.append(feature.location.start)
             ends.append(feature.location.end)
+            length.append(feature.location.end - feature.location.start)
             d = str(feature.qualifiers['taxa'][0])
             kids = [int(s) for s in d.split() if s.isdigit()]
             # print(kids)
@@ -47,7 +49,7 @@ def Gubbins_recombination(gubbins_log,gubbins_tree,clonal_tree,nodes_number,alig
             mrca_clonal.append(my_mrca(clonal_tree, kids))
     gubb_handle.close()
 
-    all_data = {'nodes': desc, 'start': starts, 'end': ends , 'mrca' :mrca , 'mrca_clonal' :mrca_clonal}
+    all_data = {'nodes': desc, 'start': starts, 'end': ends , 'mrca' :mrca , 'mrca_clonal' :mrca_clonal , 'len':length}
     df = pd.DataFrame(all_data)
     # print((df))
     Gubb_recom_count = len(df)
@@ -147,23 +149,19 @@ if __name__ == "__main__":
     alignment_len = alignment.sequence_size
 
     GubbData,rmse_Gubb,df,Gubb_recom_count = Gubbins_recombination(gubbins_log, gubbins_tree,clonal_tree, nodes_num_g, alignment_len)
+    # print(df)
     Gubbins_resultFig(gubbins_tree, GubbData, tips_num, nodes_num_g, df)
     rescale_gubbtree(gubbins_tree, gubb_csv, alignment_len)
     write_value(Gubb_recom_count,'Gubb_rcount.csv')
-    # print("GubbData[10000]")
-    # print(rmse_Gubb[10000])
+    df[['len']].to_csv('Gubbins_delta.csv', index=False)
+
 
 
     if simulation == 1:
         realData,rmse_real = real_recombination(baciSimLog, clonal_tree, nodes_num_c, alignment_len, tips_num)
-        # print("realData[10000]")
-        # print(rmse_real[10000])
         rmse_real_CFML = mean_squared_error(rmse_real, rmse_Gubb, squared=False)
         write_value(rmse_real_CFML, 'RMSE_Gubbins.csv')
-        # print(rmse_real_CFML)
-        # recom_stat = pd.read_csv(open(baciSimStat, "r"), sep=',')
-        # num_recom_real = len(recom_stat)
-        # write_value(len(recom_stat), 'recom_count_baci.csv')
+
 
 
 
