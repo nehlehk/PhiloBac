@@ -884,8 +884,7 @@ def make_physher_json_partial(tipdata,tree,json_path,outputname):
         seq = []
         for i in range(my_tipdata.shape[0]):
             taxon.append(str(give_taxon(tree, i)))
-            seq.append(np.array2string(my_tipdata[i].flatten(order='C'), separator=',')[1:-1].replace("\n", ""))
-            # seq.append(np.array2string(np.reshape(my_tipdata[i],my_tipdata[i].shape[0]*my_tipdata[i].shape[1]), separator=',')[1:-1])
+            seq.append(np.array2string(my_tipdata[i], separator=',').replace("[", "").replace("]", "").replace("\n", "").replace(" ", ""))
 
         partial = dict(zip(taxon, seq))
         data['model']['sitepattern']['partials'] = partial
@@ -909,12 +908,12 @@ if __name__ == "__main__":
     # clonal_path = path+'/clonaltree.tree'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
-    # path = '/home/nehleh/PhiloBacteria/Results/num_1'
-    # tree_path = path+'/num_1_recom_1_RAxML_bestTree.tree'
-    # clonal_path = path+'/num_1_Clonaltree.tree'
-    # genomefile = path+'/num_1_recom_1_Wholegenome_1_1.fasta'
-    # baciSimLog = path+'/num_1_recom_1_BaciSim_Log.txt'
-    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
+    path = '/home/nehleh/PhiloBacteria/hpc/nu_02_recomLen_100_allNodes/Results/num_2'
+    tree_path = path+'/num_2_recom_1_RAxML_bestTree.tree'
+    clonal_path = path+'/num_2_Clonaltree.tree'
+    genomefile = path+'/num_2_recom_1_Wholegenome_2_1.fasta'
+    baciSimLog = path+'/num_2_recom_1_BaciSim_Log.txt'
+    json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
@@ -935,9 +934,9 @@ if __name__ == "__main__":
 
     # parser.add_argument('-xml', "--xmlFile", type=str, default='/home/nehleh/PhiloBacteria/bin/template/GTR_template.xml' ,help='xmlFile')
 
-    tree_path = args.raxmltree
-    genomefile = args.alignmentFile
-    json_path = args.jsonFile
+    # tree_path = args.raxmltree
+    # genomefile = args.alignmentFile
+    # json_path = args.jsonFile
     pi = args.frequencies
     rates = args.rates
     nu = args.nuHmm
