@@ -13,7 +13,7 @@ c_file = file(params.test_file)
 // Genome = Channel.value(10)
 frequencies = Channel.value(' 0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
-iteration = Channel.value(1..30)
+iteration = Channel.value(1..5)
 recom_range = Channel.value(1)
 
 
@@ -165,7 +165,7 @@ process PhiloBacteria {
         path MyRaxML
 
      output:
-        path 'Recom_prob_two.csv'    , emit: recom_prob_two   , optional: true
+        path 'Recom_prob_two.h5'    , emit: recom_prob_two   , optional: true
         path 'PB_Partial_two.xml'   , emit: PB_Partial_two   , optional: true
         path 'PB_Gap_two.xml'       , emit: PB_Gap_two       , optional: true
         path 'PB_Del_two.xml'       , emit: PB_Del_two       , optional: true

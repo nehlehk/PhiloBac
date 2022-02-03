@@ -96,13 +96,13 @@ if __name__ == "__main__":
     # recomProb = path+'/Recom_prob_two.csv'
 
 
-    # path = '/home/nehleh/PhiloBacteria/Results/num_20'
-    # clonal_path = path+'/num_20_Clonaltree.tree'
-    # genomefile = path+'/num_20_recom_1_Wholegenome_20_1.fasta'
-    # baciSimLog = path+'/num_20_recom_1_BaciSim_Log.txt'
-    # pb_tree = path+'/num_20_recom_1_physherTree_PB.newick'
-    # recomProb = path+'/num_20_recom_1_Recom_prob_two.csv'
-    # baciSimStat = path+'/num_20_recom_1_Recom_stat.csv'
+    # path = '/home/nehleh/PhiloBacteria/hpc/nu_02_recomLen_100_allNodes/Results/num_2'
+    # clonal_path = path+'/num_2_Clonaltree.tree'
+    # genomefile = path+'/num_2_recom_1_Wholegenome_2_1.fasta'
+    # baciSimLog = path+'/num_2_recom_1_BaciSim_Log.txt'
+    # pb_tree = path+'/num_2_recom_1_physherTree_PB.newick'
+    # recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
+    # baciSimStat = path+'/num_2_recom_1_Recom_stat.csv'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
@@ -137,9 +137,13 @@ if __name__ == "__main__":
 
 
 
-    recom_prob = pd.read_csv(open(recomProb,"r"), sep=',')
-    recom_prob['posterior1'] = (recom_prob['posterior1'].str)[1:-1]
-    recom_prob['posterior1'] = (recom_prob['posterior1'].str.split())
+    # recom_prob = pd.read_csv(open(recomProb,"r"), sep=',')
+    recom_prob = pd.read_hdf(recomProb, key='prob')
+    # print(recom_prob['posterior1'])
+    # recom_prob['posterior1'] = (recom_prob['posterior1'].str)[1:-1]
+    # recom_prob['posterior1'] = (recom_prob['posterior1'].str.split())
+    # print(recom_prob['posterior1'])
+
 
     if initialstat.find('2') != -1:
         status = int(2)

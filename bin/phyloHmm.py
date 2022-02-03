@@ -336,10 +336,10 @@ def recom_output(recom_prob,tips_num,threshold,status):
                     #             output[k, recom_prob['target_node'][i]] = 1
     return output
 # **********************************************************************************************************************
-def internal_plot(c_tree,posterior,hiddenStates,score,r_node,t_node,status):
+def internal_plot(c_tree,posterior0,posterior1,hiddenStates,score,r_node,t_node,status):
     if status == 2 :
-        for i in range(len(posterior)):
-            poster = posterior[i]
+        for i in range(len(posterior0)):
+            # poster = posterior[i]
             hidden = hiddenStates[i]
             sc = score[i]
             fig = plt.figure(figsize=(10, 3))
@@ -349,12 +349,12 @@ def internal_plot(c_tree,posterior,hiddenStates,score,r_node,t_node,status):
             ax.set_ylabel("Clonal - Recombination State")
             ax2 = fig.add_subplot(2, 1, 2)
             ax2.set_title("Node" + str(t_node[i]))
-            ax2.plot(poster[:, 0], label="ClonalFrame")
+            ax2.plot(posterior0[i], label="ClonalFrame")
             if r_node[i] < tips_num:
                 label = give_taxon(c_tree, r_node[i])
             else:
                 label = r_node[i]
-            ax2.plot(poster[:, 1], label="Node"+str(label))
+            ax2.plot(posterior1[i], label="Node"+str(label))
             ax2.set_ylabel("posterior probability for each state")
             ax2.legend(loc=1, bbox_to_anchor=(1.13, 1.1))
             plt.savefig("posterior_two_node"+str(t_node[i])+"_node"+str(label)+".jpeg")
@@ -666,8 +666,8 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
         my_nu = np.arange(0.001, 0.11, 0.01)
         if status == 2 :
             # -------------- find best nu ----------------------
-            nu = give_best_nu(X, my_nu, tree_path, recombination_trees[0], target_node, X_child_order,status)
-            best_nu.append([target_node.index, nu])
+            # nu = give_best_nu(X, my_nu, tree_path, recombination_trees[0], target_node, X_child_order,status)
+            # best_nu.append([target_node.index, nu])
             # ----------- Step 2: make recombination trees -----------------------------------------------
 
             temptree = Tree.get_from_path(tree_path, 'newick')
@@ -687,8 +687,8 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
                 target_node_temp = temptree.find_node(filter_fn=filter_fn)
                 temptree.reroot_at_node(target_node_temp, update_bipartitions=False, suppress_unifurcations=True)
 
-                # recombination_trees.append(recom_maker(temptree, kid1.index, nu))
-                recombination_trees.append(recom_maker(temptree, kid1.index, nu[k1]))
+                recombination_trees.append(recom_maker(temptree, kid1.index, nu))
+                # recombination_trees.append(recom_maker(temptree, kid1.index, nu[k1]))
                 recombination_nodes.append(kid1)
 
             # print(recombination_trees)
@@ -700,12 +700,12 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
                 p_trans_nu0 = np.array([[1, 0],
                                         [1, 0]])
 
-                if nu[h-1] <= my_nu[0]:
-                    model.transmat_ = p_trans_nu0
-                else:
-                    model.transmat_ = p_trans
+                # if nu[h-1] <= my_nu[0]:
+                #     model.transmat_ = p_trans_nu0
+                # else:
+                #     model.transmat_ = p_trans
 
-                # model.transmat_ = p_trans
+                model.transmat_ = p_trans
 
                 p = model.predict_proba(X)
                 hidden = model.predict(X)
@@ -723,7 +723,8 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
                 filter_fn = lambda n: hasattr(n, 'index') and n.index == recombination_nodes[h - 1].index
                 update_child = tree_updatePartial.find_node(filter_fn=filter_fn)
                 if update_child.is_leaf():
-                    update_mixture_partial_PSE(column, update_child, tipdata, p, status, 1,nu[h-1])
+                    # update_mixture_partial_PSE(column, update_child, tipdata, p, status, 1,nu[h-1])
+                    update_mixture_partial_PSE(column, update_child, tipdata, p, status, 1, nu)
 
 
         if status == 8 :
@@ -847,7 +848,7 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
     if status == 8:
         recom_prob = pd.DataFrame({'recom_nodes': r_node, 'target_node': t_node, 'posterior': single_posterior})
 
-    return tipdata,posterior0,hiddenStates,score,recom_prob,r_node,t_node,best_nu
+    return tipdata,posterior0,posterior1,hiddenStates,score,recom_prob,r_node,t_node,best_nu
 # **********************************************************************************************************************
 def make_CATG_file(tips_num,alignment,alignment_len,tipdata,column,tree,outputname,error_flag):
     taxon = tree.taxon_namespace
@@ -884,6 +885,8 @@ def make_physher_json_partial(tipdata,tree,json_path,outputname):
         seq = []
         for i in range(my_tipdata.shape[0]):
             taxon.append(str(give_taxon(tree, i)))
+            # seq.append(np.array2string(my_tipdata[i]))
+            # seq.append(str(my_tipdata[i]).replace("[", "").replace("]", "").replace("\n", "").replace(" ", ","))
             seq.append(np.array2string(my_tipdata[i], separator=',').replace("[", "").replace("]", "").replace("\n", "").replace(" ", ""))
 
         partial = dict(zip(taxon, seq))
@@ -908,7 +911,7 @@ if __name__ == "__main__":
     # clonal_path = path+'/clonaltree.tree'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
-    path = '/home/nehleh/PhiloBacteria/hpc/nu_02_recomLen_100_allNodes/Results/num_2'
+    path = '/home/nehleh/PhiloBacteria/hpc/nu_02_recomLen_1000_allNodes/Results/num_2'
     tree_path = path+'/num_2_recom_1_RAxML_bestTree.tree'
     clonal_path = path+'/num_2_Clonaltree.tree'
     genomefile = path+'/num_2_recom_1_Wholegenome_2_1.fasta'
@@ -960,7 +963,7 @@ if __name__ == "__main__":
 
     # print(column)
     # print(nodes_number)
-    # print(tree.as_ascii_plot(show_internal_node_labels=True))
+    print(tree.as_ascii_plot(show_internal_node_labels=True))
 
     if initialstat.find('2') != -1:
         status = 2
@@ -969,26 +972,30 @@ if __name__ == "__main__":
                             [0.0001, 0.9999]])
 
         start = time.time()
-        tipdata, posterior, hiddenStates, score, recom_prob, r_node, t_node, best_nu = phylohmm(tree,alignment_len,column,nu, p_start, p_trans,tips_num,status)
+        tipdata, posterior0, posterior1, hiddenStates, score, recom_prob, r_node, t_node, best_nu = phylohmm(tree,alignment_len,column,nu, p_start, p_trans,tips_num,status)
         end = time.time()
         print("time phylohmm",end - start)
 
-        pd.options.display.max_colwidth = None
+        # print(recom_prob)
+
+
+        # pd.options.display.max_colwidth = None
         start = time.time()
-        recom_prob.to_csv('./Recom_prob_two.csv', sep=',', header=True)
+        recom_prob.to_hdf('Recom_prob_two.h5', key='prob' ,mode='w')
+        # recom_prob.to_csv('./Recom_prob_two.csv', sep=',', header=True)
         end = time.time()
-        print("time recom_prob.to_csv",end - start)
+        print("time recom_prob.to_hdf",end - start)
 
 
         c_tree = Tree.get_from_path(tree_path, 'newick')
         set_index(c_tree,alignment)
-        # internal_plot(c_tree, posterior, hiddenStates, score, r_node, t_node,status)
-        write_best_nu(best_nu,'PB_nu_two.txt')
+        internal_plot(c_tree,posterior0,posterior1,hiddenStates,score,r_node,t_node,status)
+        # write_best_nu(best_nu,'PB_nu_two.txt')
         # make_CATG_file(tips_num, alignment, alignment_len, tipdata, column, tree, 'PB_Two.catg', 0)
-        start= time.time()
-        make_physher_json_partial(tipdata, tree, json_path, 'PB_two.json')
-        end = time.time()
-        print("time make_physher_json_partial",end - start)
+        # start= time.time()
+        # make_physher_json_partial(tipdata, tree, json_path, 'PB_two.json')
+        # end = time.time()
+        # print("time make_physher_json_partial",end - start)
 
 
         # # # ======================================= providing xml files for beast ============================================

@@ -112,7 +112,8 @@ def recom_on_alignment(recom_num,recom_len,alignment_len,clonal_tree,node_labels
 # **********************************************************************************************************************
 def ex_recom_maker(tree ,node ,nu ,taxa):
     # rand_nu = np.random.normal(nu,0.007)
-    rand_nu = nu
+    rand_nu = 0.02
+    # rand_nu = nu
     write_sim_nu(rand_nu, node)
     # co_recom = rand_nu/2
     co_recom = rand_nu
@@ -339,6 +340,7 @@ def generate_final_report(df,alignment_len,clonal_tree,tips_num):
     final = pd.DataFrame({'start': bounds[:-1], 'end': bounds[1:] ,'nodes':nodes, 'descendants':children,  'len':final_len , 'status':stat ,'final_tree': final_tree ,'total': total ,'tree':r_trees })
     final[['nodes', 'start', 'end', 'len', 'descendants', 'status']].to_csv('./BaciSim_Log.txt', sep='\t', header=True)
 
+    print(final)
     myfile = open('./BaciSimTrees.tree', 'w')
     total = 0
     for id in range(len(final)):
