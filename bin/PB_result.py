@@ -23,18 +23,35 @@ def recom_output(pb_tree,recom_prob,tips_num,threshold,status,nodes_number):
                         output[j, recom_prob['recom_nodes'][i]] = 1
                         rmsedata[j, recom_prob['recom_nodes'][i]] = 1
             else:
-                for j in range(i + 1, len(recom_prob)):
-                    if (recom_prob['recom_nodes'][i] == recom_prob['target_node'][j]) and (recom_prob['recom_nodes'][j] == recom_prob['target_node'][i]):
-                        for k in range(alignment_len):
-                            if ((float(recom_prob['posterior1'][i][k]) >= threshold) and (float(recom_prob['posterior1'][j][k]) >= threshold)):
-                                output[k, recom_prob['target_node'][i]] = 1
-                                desc = set()
-                                d = give_descendents(pb_tree, int(recom_prob['target_node'][i]), desc,tips_num)
-                                # print(d)
-                                for elm in d:
-                                    rmsedata[k, int(elm)] = 1
+                if (recom_prob['recom_nodes'][i] > recom_prob['target_node'][i]):
+                    for k in range(alignment_len):
+                        if (float(recom_prob['posterior1'][i][k]) >= threshold):
+                            output[k, recom_prob['target_node'][i]] = 1
+                            desc = set()
+                            d = give_descendents(pb_tree, int(recom_prob['target_node'][i]), desc,tips_num)
+                            # print(d)
+                            for elm in d:
+                                rmsedata[k, int(elm)] = 1
 
 
+    # if status == 2:
+    #     for i in range(len(recom_prob)):
+    #         if (recom_prob['recom_nodes'][i] < tips_num):
+    #             for j in range(alignment_len):
+    #                 if (float(recom_prob['posterior1'][i][j]) >= threshold):
+    #                     output[j, recom_prob['recom_nodes'][i]] = 1
+    #                     rmsedata[j, recom_prob['recom_nodes'][i]] = 1
+    #         else:
+    #             for j in range(i + 1, len(recom_prob)):
+    #                 if (recom_prob['recom_nodes'][i] == recom_prob['target_node'][j]) and (recom_prob['recom_nodes'][j] == recom_prob['target_node'][i]):
+    #                     for k in range(alignment_len):
+    #                         if ((float(recom_prob['posterior1'][i][k]) >= threshold) and (float(recom_prob['posterior1'][j][k]) >= threshold)):
+    #                             output[k, recom_prob['target_node'][i]] = 1
+    #                             desc = set()
+    #                             d = give_descendents(pb_tree, int(recom_prob['target_node'][i]), desc,tips_num)
+    #                             # print(d)
+    #                             for elm in d:
+    #                                 rmsedata[k, int(elm)] = 1
     return output,rmsedata
 # **********************************************************************************************************************
 def recom_resultFig_dm(pb_tree,recom_prob,tips_num,mixtureProb,status,outputname,nodes_number):
@@ -43,6 +60,7 @@ def recom_resultFig_dm(pb_tree,recom_prob,tips_num,mixtureProb,status,outputname
     color = ['red', 'green', 'purple', 'blue', 'black']
     clonaltree = Tree.get_from_path(pb_tree, 'newick')
     set_index(clonaltree,alignment)
+    # clonaltree.reroot_at_midpoint(update_bipartitions=False)
     for i in range(nodes_number):
         ax = fig.add_subplot(nodes_number, 1, i + 1)
         if i >= tips_num:
@@ -93,16 +111,20 @@ if __name__ == "__main__":
     # genomefile = path+'/num_1_wholegenome_1.fasta'
     # baciSimLog = path+'/BaciSim_Log.txt'
     # pb_tree = path+'/PB_two.newick'
-    # recomProb = path+'/Recom_prob_two.csv'
-
-
-    # path = '/home/nehleh/PhiloBacteria/hpc/nu_02_recomLen_100_allNodes/Results/num_2'
-    # clonal_path = path+'/num_2_Clonaltree.tree'
-    # genomefile = path+'/num_2_recom_1_Wholegenome_2_1.fasta'
-    # baciSimLog = path+'/num_2_recom_1_BaciSim_Log.txt'
-    # pb_tree = path+'/num_2_recom_1_physherTree_PB.newick'
     # recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
-    # baciSimStat = path+'/num_2_recom_1_Recom_stat.csv'
+
+
+
+    path = '/home/nehleh/PhiloBacteria/Results_slides/num_4'
+    # tree_path = path+'/num_4_beasttree.newick'
+    clonal_path = path+'/num_4_Clonaltree.tree'
+    genomefile = path+'/num_4_recom_1_Wholegenome_4_1.fasta'
+    baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
+    pb_tree = path+'/num_4_recom_1_physherTree_PB.newick'
+    recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
+    # recomProb = path+'/num_1_recom_1_Recom_prob_two.h5'
+    baciSimStat = path+'/num_4_recom_1_Recom_stat.csv'
+    json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
@@ -119,10 +141,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
-    genomefile = args.alignmentFile
-    pb_tree = args.PBtreefile
-    recomProb = args.recomProb
-    baciSimStat = args.recomstat
+    # genomefile = args.alignmentFile
+    # pb_tree = args.PBtreefile
+    # recomProb = args.recomProb
+    # baciSimStat = args.recomstat
     simulation = args.simulation
     initialstat = args.status
     threshold = args.threshold
@@ -130,19 +152,13 @@ if __name__ == "__main__":
 
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
     PB_tree = Tree.get_from_path(pb_tree, 'newick')
+    # PB_tree.reroot_at_midpoint(update_bipartitions=False)
     set_index(PB_tree,alignment)
+    # print(PB_tree.as_ascii_plot(show_internal_node_labels=True))
     nodes_num_pb = len(PB_tree.nodes())
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
-
-
-
-    # recom_prob = pd.read_csv(open(recomProb,"r"), sep=',')
     recom_prob = pd.read_hdf(recomProb, key='prob')
-    # print(recom_prob['posterior1'])
-    # recom_prob['posterior1'] = (recom_prob['posterior1'].str)[1:-1]
-    # recom_prob['posterior1'] = (recom_prob['posterior1'].str.split())
-    # print(recom_prob['posterior1'])
 
 
     if initialstat.find('2') != -1:
@@ -163,11 +179,12 @@ if __name__ == "__main__":
 
 
     if simulation == 1 :
-        clonal_path = args.clonaltreeFile
-        baciSimLog = args.recomlogFile
+        # clonal_path = args.clonaltreeFile
+        # baciSimLog = args.recomlogFile
         clonal_tree = Tree.get_from_path(clonal_path, 'newick')
         nodes_number_c = len(clonal_tree.nodes())
         set_index(clonal_tree,alignment)
+        print(clonal_tree.as_ascii_plot(show_internal_node_labels=True))
         realData,rmse_real = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
 
 
@@ -187,12 +204,3 @@ if __name__ == "__main__":
             # print(phyloHMMData8.shape)
             rmse_real_philo8 = mean_squared_error(rmse_real,phyloHMMData8,squared=False)
             write_value(rmse_real_philo8, 'RMSE_PB_eight.csv')
-
-
-
-
-
-
-
-
-

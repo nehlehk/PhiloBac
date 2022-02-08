@@ -122,17 +122,20 @@ if __name__ == "__main__":
     set_index(clonal_tree)
 
     cfml_tree = Tree.get_from_path(cfml_tree, 'newick')
+    # cfml_tree.reroot_at_midpoint(update_bipartitions=False)
+    # print(cfml_tree.as_ascii_plot(show_internal_node_labels=True))
     nodes_number = len(cfml_tree.nodes())
+    # print(nodes_number)
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
     set_index(cfml_tree)
 
+
     my_label = []
     my_index = []
     for node in cfml_tree.postorder_node_iter():
         if "NODE" in str(node.label):
-
             my_label.append(int(node.label[5:]))
         else:
             my_label.append(int(node.label))

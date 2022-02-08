@@ -13,7 +13,7 @@ c_file = file(params.test_file)
 // Genome = Channel.value(10)
 frequencies = Channel.value(' 0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
-iteration = Channel.value(1..5)
+iteration = Channel.value(1..7)
 recom_range = Channel.value(1)
 
 
@@ -21,11 +21,11 @@ params.xml = "${PWD}/bin/template/GTR_template.xml"
 params.json = "${PWD}/bin/template/GTR_temp_partial.json"
 
 params.genome = 10
-params.genomelen = '5000'
-params.recomlen = '600'
+params.genomelen = '100000'
+params.recomlen = '500'
 params.recomrate = '0.01'
 params.tMRCA = '0.01'
-params.nu_sim = '0.05'
+params.nu_sim = '0.08'
 params.best = false
 //params.method = 'pb'
 params.hmm_state = '2'
