@@ -115,16 +115,16 @@ if __name__ == "__main__":
 
 
 
-    path = '/home/nehleh/PhiloBacteria/Results_slides/num_4'
-    # tree_path = path+'/num_4_beasttree.newick'
-    clonal_path = path+'/num_4_Clonaltree.tree'
-    genomefile = path+'/num_4_recom_1_Wholegenome_4_1.fasta'
-    baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
-    pb_tree = path+'/num_4_recom_1_physherTree_PB.newick'
-    recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
-    # recomProb = path+'/num_1_recom_1_Recom_prob_two.h5'
-    baciSimStat = path+'/num_4_recom_1_Recom_stat.csv'
-    json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
+    # path = '/home/nehleh/PhiloBacteria/Results_slides/num_4'
+    # # tree_path = path+'/num_4_beasttree.newick'
+    # clonal_path = path+'/num_4_Clonaltree.tree'
+    # genomefile = path+'/num_4_recom_1_Wholegenome_4_1.fasta'
+    # baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
+    # pb_tree = path+'/num_4_recom_1_physherTree_PB.newick'
+    # recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
+    # # recomProb = path+'/num_1_recom_1_Recom_prob_two.h5'
+    # baciSimStat = path+'/num_4_recom_1_Recom_stat.csv'
+    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
@@ -141,10 +141,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
-    # genomefile = args.alignmentFile
-    # pb_tree = args.PBtreefile
-    # recomProb = args.recomProb
-    # baciSimStat = args.recomstat
+    genomefile = args.alignmentFile
+    pb_tree = args.PBtreefile
+    recomProb = args.recomProb
+    baciSimStat = args.recomstat
     simulation = args.simulation
     initialstat = args.status
     threshold = args.threshold
@@ -179,8 +179,8 @@ if __name__ == "__main__":
 
 
     if simulation == 1 :
-        # clonal_path = args.clonaltreeFile
-        # baciSimLog = args.recomlogFile
+        clonal_path = args.clonaltreeFile
+        baciSimLog = args.recomlogFile
         clonal_tree = Tree.get_from_path(clonal_path, 'newick')
         nodes_number_c = len(clonal_tree.nodes())
         set_index(clonal_tree,alignment)

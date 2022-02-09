@@ -885,13 +885,13 @@ if __name__ == "__main__":
     # clonal_path = path+'/clonaltree.tree'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
-    path = '/home/nehleh/PhiloBacteria/Results_slides/num_4'
-    tree_path = path+'/num_4_recom_1_RAxML_bestTree.tree'
-    # tree_path = path+'/num_1_beasttree.newick'
-    clonal_path = path+'/num_4_Clonaltree.tree'
-    genomefile = path+'/num_4_recom_1_Wholegenome_4_1.fasta'
-    baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
-    json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
+    # path = '/home/nehleh/PhiloBacteria/Results_slides/num_4'
+    # tree_path = path+'/num_4_recom_1_RAxML_bestTree.tree'
+    # # tree_path = path+'/num_1_beasttree.newick'
+    # clonal_path = path+'/num_4_Clonaltree.tree'
+    # genomefile = path+'/num_4_recom_1_Wholegenome_4_1.fasta'
+    # baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
+    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
@@ -912,9 +912,9 @@ if __name__ == "__main__":
 
     # parser.add_argument('-xml', "--xmlFile", type=str, default='/home/nehleh/PhiloBacteria/bin/template/GTR_template.xml' ,help='xmlFile')
 
-    # tree_path = args.raxmltree
-    # genomefile = args.alignmentFile
-    # json_path = args.jsonFile
+    tree_path = args.raxmltree
+    genomefile = args.alignmentFile
+    json_path = args.jsonFile
     pi = args.frequencies
     rates = args.rates
     nu = args.nuHmm
@@ -975,7 +975,7 @@ if __name__ == "__main__":
         write_best_nu(best_nu,'PB_nu_two.txt')
         # make_CATG_file(tips_num, alignment, alignment_len, tipdata, column, tree, 'PB_Two.catg', 0)
         start= time.time()
-        # make_physher_json_partial(tipdata, tree, json_path, 'PB_two.json')
+        make_physher_json_partial(tipdata, tree, json_path, 'PB_two.json')
         end = time.time()
         print("time make_physher_json_partial",end - start)
 

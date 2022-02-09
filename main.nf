@@ -13,7 +13,7 @@ c_file = file(params.test_file)
 // Genome = Channel.value(10)
 frequencies = Channel.value(' 0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
-iteration = Channel.value(1..7)
+iteration = Channel.value(1..10)
 recom_range = Channel.value(1)
 
 
@@ -25,7 +25,7 @@ params.genomelen = '100000'
 params.recomlen = '500'
 params.recomrate = '0.01'
 params.tMRCA = '0.01'
-params.nu_sim = '0.08'
+params.nu_sim = '0.01'
 params.best = false
 //params.method = 'pb'
 params.hmm_state = '2'

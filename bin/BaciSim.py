@@ -103,6 +103,8 @@ def recom_on_alignment(recom_num,recom_len,alignment_len,clonal_tree,node_labels
     all_data = {'nodes':nodes , 'start':starts , 'end':ends, 'len':recomlens , 'tree':my_trees , 'nu' : rand_nu , 'edge_len':edge_len}
     df = pd.DataFrame(all_data)
 
+    # print(df)
+
     gf = df.value_counts(['nodes','edge_len','nu']).reset_index(name='count')
     # print(gf)
     gf.to_csv('./Recombination_count.csv', sep='\t', header=True)
@@ -112,15 +114,23 @@ def recom_on_alignment(recom_num,recom_len,alignment_len,clonal_tree,node_labels
 # **********************************************************************************************************************
 def ex_recom_maker(tree ,node ,nu ,taxa):
     # rand_nu = np.random.normal(nu,0.007)
-    # rand_nu = 0.02
+    # rand_nu = 0.009
     rand_nu = nu
     write_sim_nu(rand_nu, node)
     # co_recom = rand_nu/2
     co_recom = rand_nu
     new_tree = dendropy.Tree(taxon_namespace=taxa)
     parent = node.parent_node
+
+    # print(node)
+    # print("tree.max_distance_from_root():",tree.max_distance_from_root())
+    # print("co_recom + node.edge_length:",co_recom + node.edge_length)
+    # print("parent.distance_from_tip():",parent.distance_from_tip())
+
+
     # changeing in topology when recombiantion is larger than tree.max_distance_from_root()
-    if co_recom > tree.max_distance_from_root():
+    # if co_recom >= tree.max_distance_from_root():
+    if (co_recom + node.edge_length) >= tree.max_distance_from_root():
       if (node.edge_length is None):
         node.edge.length = 0
       # new_tree = dendropy.Tree(taxon_namespace=taxa)
@@ -217,9 +227,10 @@ def recom_repeat(recom_num, recom_len, alignment_len, clonal_tree, nu_ex, taxa, 
                     rand_nu.append(my_nu)
                     starting_falg = True
 
-    all_data = {'nodes': nodes, 'start': starts, 'end': ends, 'len': recomlens, 'tree': my_trees, 'nu': rand_nu,
-                'edge_len': edge_len}
+    all_data = {'nodes': nodes, 'start': starts, 'end': ends, 'len': recomlens, 'tree': my_trees, 'nu': rand_nu, 'edge_len': edge_len}
     df = pd.DataFrame(all_data)
+
+
 
     gf = df.value_counts(['nodes', 'edge_len', 'nu']).reset_index(name='count')
     gf.to_csv('./Recombination_count.csv', sep='\t', header=True)
@@ -340,7 +351,7 @@ def generate_final_report(df,alignment_len,clonal_tree,tips_num):
     final = pd.DataFrame({'start': bounds[:-1], 'end': bounds[1:] ,'nodes':nodes, 'descendants':children,  'len':final_len , 'status':stat ,'final_tree': final_tree ,'total': total ,'tree':r_trees })
     final[['nodes', 'start', 'end', 'len', 'descendants', 'status']].to_csv('./BaciSim_Log.txt', sep='\t', header=True)
 
-    print(final)
+    # print(final)
     myfile = open('./BaciSimTrees.tree', 'w')
     total = 0
     for id in range(len(final)):
@@ -369,8 +380,8 @@ if __name__ == "__main__":
     parser.add_argument('-n', "--tips_number", type=int, default=10 , help='Sets the number of isolates (default is 10)')
     parser.add_argument('-g', "--alignment_len", type=int, default=100000 , help='Sets the number and lengths of fragments of genetic material (default is 5000)')
     parser.add_argument('-l', "--recom_len", type=int, default=500, help='Sets the average length of an external recombinant interval, (default is 500)')
-    parser.add_argument('-r', "--recom_rate",type=float, default=0.003, help='Sets the site-specific rate of external (between species) recombination, (default is 0.05)')
-    parser.add_argument('-nu',"--nu" ,  type=float, default=0.05, help='nu')
+    parser.add_argument('-r', "--recom_rate",type=float, default=0.01, help='Sets the site-specific rate of external (between species) recombination, (default is 0.05)')
+    parser.add_argument('-nu',"--nu" ,  type=float, default=0.01, help='nu')
     parser.add_argument('-s',"--status" ,  type=int, default=1, help='0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes')
     parser.add_argument('-f', "--fixed", type=int, default=1, help='0 for fixed number and fixed len of recombination and 1 for normal/random way making recombination events.')
     parser.add_argument('-e', "--each_recom", type=int, default=1, help='each_recom')
