@@ -152,7 +152,6 @@ if __name__ == "__main__":
 
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
     PB_tree = Tree.get_from_path(pb_tree, 'newick')
-    # PB_tree.reroot_at_midpoint(update_bipartitions=False)
     set_index(PB_tree,alignment)
     # print(PB_tree.as_ascii_plot(show_internal_node_labels=True))
     nodes_num_pb = len(PB_tree.nodes())

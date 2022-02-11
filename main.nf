@@ -13,7 +13,7 @@ c_file = file(params.test_file)
 // Genome = Channel.value(10)
 frequencies = Channel.value(' 0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
-iteration = Channel.value(1..10)
+iteration = Channel.value(1..2)
 recom_range = Channel.value(1)
 
 
@@ -21,9 +21,9 @@ params.xml = "${PWD}/bin/template/GTR_template.xml"
 params.json = "${PWD}/bin/template/GTR_temp_partial.json"
 
 params.genome = 10
-params.genomelen = '100000'
+params.genomelen = '10000'
 params.recomlen = '500'
-params.recomrate = '0.01'
+params.recomrate = '0.001'
 params.tMRCA = '0.01'
 params.nu_sim = '0.01'
 params.best = false
@@ -147,9 +147,8 @@ process Get_raxml_tree {
 
     output:
         path 'RAxML_bestTree.tree', emit: MyRaxML
-
     """
-     raxmlHPC -m GTRGAMMA   -p 12345 -s ${Wholegenome} -N 10 -n tree
+    raxmlHPC -m GTRGAMMA   -p 12345 -s ${Wholegenome} -N 10 -n tree
     """
 }
 
@@ -756,10 +755,8 @@ workflow Physher {
 
 
 include {   Physher_partial as physher_PSE_9        ; Physher_tree as p_tree_PSE_9 ;
-            Physher_partial as physher_PSE_9_0      ; Physher_tree as p_tree_PSE_9_0 ;
-            Physher_partial as physher_PSE_999      ; Physher_tree as p_tree_PSE_999 ;
-            Physher_partial as physher_PSE_999_0    ; Physher_tree as p_tree_PSE_999_0 ;
             Physher_partial as physher_PB           ; Physher_tree as p_tree_PB }  from './Physher.nf'
+
 
 
 workflow {
@@ -775,10 +772,6 @@ workflow {
 
         if (params.best == true) {
             Best(Sim.out.genome,Sim.out.clonaltree,Get_raxml_tree.out.MyRaxML,Sim.out.recom_log,Sim.out.iteration,Sim.out.recomRange)
-            //Physher_partial(Best.out.Partial_json,Sim.out.iteration,Sim.out.recomRange,'physher_best_partial.txt')
-            //Physher_tree(Physher_partial.out.physher_txt,Sim.out.iteration,Sim.out.recomRange,'physherTree_best_partial.newick')
-            physher_PSE_999(Best.out.BaciSim_PSE_999,Sim.out.iteration,Sim.out.recomRange,'physher_PSE_999.txt')
-            p_tree_PSE_999(physher_PSE_999.out.physher_txt,Sim.out.iteration,Sim.out.recomRange,'physherTree_PSE_999.newick')
         }
         if (params.method =~ /cfml/) {
             ClonalFrameML(Sim.out.clonaltree,Sim.out.recom_log,Sim.out.genome,Get_raxml_tree.out.MyRaxML,Sim.out.iteration,Sim.out.recomRange)
