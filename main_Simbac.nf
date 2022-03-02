@@ -4,7 +4,7 @@ nextflow.enable.dsl = 2
 
 frequencies = Channel.value('0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
-iteration = Channel.value(1..10)
+iteration = Channel.value(1..5)
 
 
 
@@ -13,7 +13,7 @@ params.genome = 10
 params.genomelen = '100000'
 params.recomlen = '500'
 params.recomrate = '0.0005'
-params.nu_sim = '0.08'
+params.nu_sim = '0.05'
 //params.method = 'pb'
 params.hmm_state = '2'
 params.nu_hmm = 0.033
@@ -41,7 +41,7 @@ def helpMessage() {
       --nu_sim               value >0 (default 0.05)                nu value using in simulated data
       --best                 true or false (default)                show the best answer
       --method               pb,cfml,gub (default pb)               Recombination detection methods(PhiloBacteria,ClonalFrameML,Gubbins)
-      --analyse              value: 0,1,2 (default 2)               0:recombination detection, 1: corrected phylogeny, 2: both 0 and 1
+      --analyse              true or false
   Options for detecting recombination in empirical sequence alignments:
     Mandatory arguments:
       --mode emp
@@ -74,7 +74,7 @@ process SimBac {
         val iteration                                      , emit: iteration
 
     """
-      SimBac -N ${params.genome}  -B ${params.genomelen} -T 0.01 -r ${params.recomrate} -e ${params.recomlen} -R 0 -D 0 -m ${params.nu_sim} -M ${params.nu_sim} -c SimBacClonal.tree -l SimBacTrees.tree -b SimBac_internal.log -f SimBac_external.log -o SimBac_seq.fasta
+      SimBac -N ${params.genome}  -B ${params.genomelen} -T 2 -r ${params.recomrate} -e ${params.recomlen} -R 0 -D 0 -m ${params.nu_sim} -M ${params.nu_sim} -c SimBacClonal.tree -l SimBacTrees.tree -b SimBac_internal.log -f SimBac_external.log -o SimBac_seq.fasta
     """
 }
 
@@ -115,7 +115,7 @@ process PhiloBacteria {
 
 
      """
-       phyloHmm.py -t ${MyRaxML}  -a ${SimBac_seq}  -cl ${SimBacClonal}  -nu ${params.nu_hmm} -st ${params.hmm_state} -sim ${params.simulation} -js ${params.json}
+       phyloHmm_two.py -t ${MyRaxML}  -a ${SimBac_seq}  -cl ${SimBacClonal}  -nu ${params.nu_hmm} -st ${params.hmm_state} -sim ${params.simulation} -js ${params.json}
      """
 }
 
@@ -176,7 +176,7 @@ process PhiloBac_result {
         path 'PB_delta_two.csv'     , emit: PB_Delta_two     , optional: true
 
      """
-       PB_result.py  -cl ${SimBacClonal}  -a ${SimBac_seq}  -pb ${physherTree_two} -rp ${recom_prob_two} -st ${params.hmm_state} -sim ${params.simulation} -p ${params.threshold}
+       PB_result_two.py  -cl ${SimBacClonal}  -a ${SimBac_seq}  -pb ${physherTree_two} -rp ${recom_prob_two} -st ${params.hmm_state} -sim ${params.simulation} -p ${params.threshold}
 
      """
 }
@@ -375,7 +375,7 @@ if (params.help) {
             Physher_tree(Physher_partial.out.physher_txt,SimBac.out.iteration,'physherTree_PB.newick')
             PhiloBac_result(SimBac.out.Clonaltree,SimBac.out.Wholegenome,PhiloBacteria.out.recom_prob_two,Physher_tree.out.physherTree_two)
         }
-        if (params.analyse == 2)  {
+        if (params.analyse == true)  {
             mergeTreeFiles(ClonalFrameML.out.CFMLtree,Gubbins.out.GubbinsRescaletree,Physher_tree.out.physherTree_two,SimBac.out.iteration)
             TreeCmp(SimBac.out.Clonaltree,mergeTreeFiles.out.allOtherTrees)
             collectedCMP_tree = TreeCmp.out.Comparison.collectFile(name:"all_cmpTrees.result",storeDir:"${PWD}/Summary_SimBac", keepHeader:true , sort: false)

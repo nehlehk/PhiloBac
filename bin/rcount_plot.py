@@ -39,7 +39,7 @@ two = abs(df3['True'] - df1['Gubbins'])
 three = abs(df3['True'] - df2['CFML'])
 new = pd.concat([one,two,three],axis = 1 ,ignore_index=True , names=['PB_two','Gubbins','CFML'])
 new = new.set_axis(['PhiloBacter','Gubbins','CFML'], axis=1, inplace=False)
-# print(new)
+print(new)
 
 
 fig = plt.figure(figsize=(15,5))

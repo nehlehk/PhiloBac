@@ -58,9 +58,9 @@ def recom_resultFig_dm(pb_tree,recom_prob,tips_num,mixtureProb,status,outputname
     output,rmsedata = recom_output(PB_tree,recom_prob,tips_num,mixtureProb,status,nodes_number)
     fig = plt.figure(figsize=(tips_num + 9, tips_num / 2))
     color = ['red', 'green', 'purple', 'blue', 'black']
-    clonaltree = Tree.get_from_path(pb_tree, 'newick')
+    clonaltree = Tree.get_from_path(pb_tree, 'newick',rooting='force-rooted')
+    clonaltree.reroot_at_midpoint(update_bipartitions=True)
     set_index(clonaltree,alignment)
-    # clonaltree.reroot_at_midpoint(update_bipartitions=False)
     for i in range(nodes_number):
         ax = fig.add_subplot(nodes_number, 1, i + 1)
         if i >= tips_num:
@@ -76,7 +76,7 @@ def recom_resultFig_dm(pb_tree,recom_prob,tips_num,mixtureProb,status,outputname
     ax.axis('on')
     ax.set_yticklabels([])
     plt.savefig(outputname)
-
+    plt.show()
     return output,rmsedata
 # **********************************************************************************************************************
 def phyloHMM_Log(c_tree,output,outputname):
@@ -114,17 +114,16 @@ if __name__ == "__main__":
     # recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
 
 
-
-    # path = '/home/nehleh/PhiloBacteria/Results_slides/num_4'
-    # # tree_path = path+'/num_4_beasttree.newick'
-    # clonal_path = path+'/num_4_Clonaltree.tree'
-    # genomefile = path+'/num_4_recom_1_Wholegenome_4_1.fasta'
-    # baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
-    # pb_tree = path+'/num_4_recom_1_physherTree_PB.newick'
-    # recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
-    # # recomProb = path+'/num_1_recom_1_Recom_prob_two.h5'
-    # baciSimStat = path+'/num_4_recom_1_Recom_stat.csv'
-    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
+    path = '/home/nehleh/PhiloBacteria/Results_slides/num_4'
+    # tree_path = path+'/num_4_beasttree.newick'
+    clonal_path = path+'/num_4_Clonaltree.tree'
+    genomefile = path+'/num_4_recom_1_Wholegenome_4_1.fasta'
+    baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
+    pb_tree = path+'/num_4_recom_1_physherTree_PB.newick'
+    recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
+    # recomProb = path+'/num_1_recom_1_Recom_prob_two.h5'
+    baciSimStat = path+'/num_4_recom_1_Recom_stat.csv'
+    json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
@@ -141,19 +140,20 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
-    genomefile = args.alignmentFile
-    pb_tree = args.PBtreefile
-    recomProb = args.recomProb
-    baciSimStat = args.recomstat
+    # genomefile = args.alignmentFile
+    # pb_tree = args.PBtreefile
+    # recomProb = args.recomProb
+    # baciSimStat = args.recomstat
     simulation = args.simulation
     initialstat = args.status
     threshold = args.threshold
 
 
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
-    PB_tree = Tree.get_from_path(pb_tree, 'newick')
+    PB_tree = Tree.get_from_path(pb_tree, 'newick' ,  rooting='force-rooted')
+    PB_tree.reroot_at_midpoint(update_bipartitions=True)
     set_index(PB_tree,alignment)
-    # print(PB_tree.as_ascii_plot(show_internal_node_labels=True))
+    print(PB_tree.as_ascii_plot(show_internal_node_labels=True))
     nodes_num_pb = len(PB_tree.nodes())
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
@@ -177,29 +177,30 @@ if __name__ == "__main__":
 
 
 
-    if simulation == 1 :
-        clonal_path = args.clonaltreeFile
-        baciSimLog = args.recomlogFile
-        clonal_tree = Tree.get_from_path(clonal_path, 'newick')
-        nodes_number_c = len(clonal_tree.nodes())
-        set_index(clonal_tree,alignment)
-        print(clonal_tree.as_ascii_plot(show_internal_node_labels=True))
-        realData,rmse_real = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
-
-
-        recom_stat = pd.read_csv(open(baciSimStat, "r"), sep=',')
-        # print(recom_stat)
-        num_recom_real = len(recom_stat)
-        write_value(len(recom_stat), 'baci_rcount.csv')
-        recom_stat[['len']].to_csv('baci_delta.csv' , index=False)
-
-
-
-        if initialstat.find('2') != -1:
-            rmse_real_philo2 = mean_squared_error(rmse_real,rmse_PB2,squared=False)
-            write_value(rmse_real_philo2, 'RMSE_PB_two.csv')
-            # print(rmse_real_philo2)
-        if initialstat.find('8') != -1:
-            # print(phyloHMMData8.shape)
-            rmse_real_philo8 = mean_squared_error(rmse_real,phyloHMMData8,squared=False)
-            write_value(rmse_real_philo8, 'RMSE_PB_eight.csv')
+    # if simulation == 1 :
+    #     # clonal_path = args.clonaltreeFile
+    #     # baciSimLog = args.recomlogFile
+    #     clonal_tree = Tree.get_from_path(clonal_path, 'newick',rooting='force-rooted' )
+    #     clonal_tree.resolve_polytomies(update_bipartitions=True)
+    #     nodes_number_c = len(clonal_tree.nodes())
+    #     set_index(clonal_tree,alignment)
+    #     # print(clonal_tree.as_ascii_plot(show_internal_node_labels=True))
+    #     realData,rmse_real = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
+    #
+    #
+    #     recom_stat = pd.read_csv(open(baciSimStat, "r"), sep=',')
+    #     # print(recom_stat)
+    #     num_recom_real = len(recom_stat)
+    #     write_value(len(recom_stat), 'baci_rcount.csv')
+    #     recom_stat[['len']].to_csv('baci_delta.csv' , index=False)
+    #
+    #
+    #
+    #     if initialstat.find('2') != -1:
+    #         rmse_real_philo2 = mean_squared_error(rmse_real,rmse_PB2,squared=False)
+    #         write_value(rmse_real_philo2, 'RMSE_PB_two.csv')
+    #         # print(rmse_real_philo2)
+    #     if initialstat.find('8') != -1:
+    #         # print(phyloHMMData8.shape)
+    #         rmse_real_philo8 = mean_squared_error(rmse_real,phyloHMMData8,squared=False)
+    #         write_value(rmse_real_philo8, 'RMSE_PB_eight.csv')

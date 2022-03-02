@@ -80,13 +80,12 @@ def recom_on_alignment(recom_num,recom_len,alignment_len,clonal_tree,node_labels
       starting_falg = False
       tree = Tree.get_from_string(clonal_tree,schema='newick')
       set_index(tree)
-      while not starting_falg:
-        random_tip = np.random.choice(node_labels,1,node_weight)
-        start_pos = random.randint(ideal_gap * recom_id, ideal_gap * (recom_id+1) )
-        r_len = random.randint(recom_len, recom_len + threshold_len)
-        # r_len = recom_len
-        if (start_pos + r_len <= alignment_len) :
-          # print((int(random_tip)))
+      random_tip = np.random.choice(node_labels,1,node_weight)
+      start_pos = random.randint(ideal_gap * recom_id, ideal_gap * (recom_id+1) )
+      r_len = random.randint(recom_len, recom_len + threshold_len)
+      if (start_pos + r_len > alignment_len):
+          r_len = alignment_len - start_pos
+      if r_len > 0:
           nodes.append(int(random_tip))
           starts.append(start_pos)
           recomlens.append(r_len)
@@ -97,7 +96,7 @@ def recom_on_alignment(recom_num,recom_len,alignment_len,clonal_tree,node_labels
           recom_tree, my_nu = ex_recom_maker(tree, recom_node, nu_ex,taxa)
           my_trees.append(recom_tree)
           rand_nu.append(my_nu)
-          starting_falg = True
+
 
 
     all_data = {'nodes':nodes , 'start':starts , 'end':ends, 'len':recomlens , 'tree':my_trees , 'nu' : rand_nu , 'edge_len':edge_len}
@@ -351,7 +350,10 @@ def generate_final_report(df,alignment_len,clonal_tree,tips_num):
     final = pd.DataFrame({'start': bounds[:-1], 'end': bounds[1:] ,'nodes':nodes, 'descendants':children,  'len':final_len , 'status':stat ,'final_tree': final_tree ,'total': total ,'tree':r_trees })
     final[['nodes', 'start', 'end', 'len', 'descendants', 'status']].to_csv('./BaciSim_Log.txt', sep='\t', header=True)
 
-    # print(final)
+    # delete row with len zero, it made problem in seq-gen
+    delete_row = final[final['len'] == 0].index
+    final = final.drop(delete_row)
+
     myfile = open('./BaciSimTrees.tree', 'w')
     total = 0
     for id in range(len(final)):
@@ -380,8 +382,8 @@ if __name__ == "__main__":
     parser.add_argument('-n', "--tips_number", type=int, default=10 , help='Sets the number of isolates (default is 10)')
     parser.add_argument('-g', "--alignment_len", type=int, default=100000 , help='Sets the number and lengths of fragments of genetic material (default is 5000)')
     parser.add_argument('-l', "--recom_len", type=int, default=500, help='Sets the average length of an external recombinant interval, (default is 500)')
-    parser.add_argument('-r', "--recom_rate",type=float, default=0.01, help='Sets the site-specific rate of external (between species) recombination, (default is 0.05)')
-    parser.add_argument('-nu',"--nu" ,  type=float, default=0.01, help='nu')
+    parser.add_argument('-r', "--recom_rate",type=float, default=0.1, help='Sets the site-specific rate of external (between species) recombination, (default is 0.05)')
+    parser.add_argument('-nu',"--nu" ,  type=float, default=0.05, help='nu')
     parser.add_argument('-s',"--status" ,  type=int, default=1, help='0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes')
     parser.add_argument('-f', "--fixed", type=int, default=1, help='0 for fixed number and fixed len of recombination and 1 for normal/random way making recombination events.')
     parser.add_argument('-e', "--each_recom", type=int, default=1, help='each_recom')
@@ -426,6 +428,7 @@ if __name__ == "__main__":
 
     output = make_recom_fig(all_data,alignment_len, nodes_num, tips_num, clonal_tree,recom_num)
     final_report = generate_final_report(df, alignment_len, clonal_tree, tips_num)
+
 
 
 

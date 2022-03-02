@@ -106,7 +106,7 @@ def compute_logprob_phylo(X,recom_trees,model,child_order,X_child_order,status):
         state_tree = dendropy.Tree.get(data=item, schema="newick")
         children = state_tree.seed_node.child_nodes()
         orders = [X_child_order.index(child_order[i]) for i in range(len(children))]
-        branch_lengths = np.array( [children[i].edge_length for i in range(len(children))])
+        branch_lengths = np.array([children[i].edge_length for i in range(len(children))])
         matrices = model.p_t(branch_lengths)
         result[:, tree_id] = np.log(model.get_pi() @ (matrices @ XX[..., orders].T).prod(0))
 
@@ -215,6 +215,22 @@ def make_hmm_input_mixture(tree,alignment_len,column,tip_partial,model,tips_num)
         x[:, (id * 4):((id + 1) * 4)] = partial[:, int(child.index), :]
     return x
 # **********************************************************************************************************************
+
+
+def make_hmm_input_mixture_two(tree,alignment_len,column,tip_partial,model,tips_num,target_node):
+    sitell, partial = computelikelihood_mixture(tree, alignment_len, column, tip_partial, model, tips_num)
+
+    children = target_node.child_nodes()
+    children_count = len(children)
+    x = np.zeros((alignment_len, children_count * 4))
+    for id, child in enumerate(children):
+        # print(child.index)
+        x[:, (id * 4):((id + 1) * 4)] = partial[:, int(child.index), :]
+    return x
+# **********************************************************************************************************************
+
+
+
 def tree_evolver_rerooted(tree ,node ,nu):
     # co_recom = nu/2
     co_recom = nu
@@ -463,8 +479,8 @@ def nu_trees(nu,target_node,tree_path,status):
     recombination_trees = []
     child_order = []
     recombination_nodes = []
-    temptree = Tree.get_from_path(tree_path, 'newick')
-    # temptree.reroot_at_midpoint(update_bipartitions=False)
+    temptree = Tree.get_from_path(tree_path, 'newick', rooting='force-rooted')
+    temptree.reroot_at_midpoint(update_bipartitions=False)
     set_index(temptree, alignment)
     filter_fn = lambda n: hasattr(n, 'index') and n.index == target_node.index
     target_node_temp = temptree.find_node(filter_fn=filter_fn)
@@ -474,8 +490,8 @@ def nu_trees(nu,target_node,tree_path,status):
     if status == 2:
         for k1, kid1 in enumerate(kids):
             child_order.append(kid1.index)  # keep the order of children after reroot
-            temptree = Tree.get_from_path(tree_path, 'newick')
-            # temptree.reroot_at_midpoint(update_bipartitions=False)
+            temptree = Tree.get_from_path(tree_path, 'newick', rooting='force-rooted')
+            temptree.reroot_at_midpoint(update_bipartitions=True)
             set_index(temptree, alignment)
             filter_fn = lambda n: hasattr(n, 'index') and n.index == target_node.index
             target_node_temp = temptree.find_node(filter_fn=filter_fn)
@@ -492,7 +508,8 @@ def nu_trees(nu,target_node,tree_path,status):
 
         kids.sort(key=myFunc)
         for k1, kid1 in enumerate(kids):
-            temptree = Tree.get_from_path(tree_path, 'newick')
+            temptree = Tree.get_from_path(tree_path, 'newick', rooting='force-rooted')
+            temptree.reroot_at_midpoint(update_bipartitions=True)
             set_index(temptree, alignment)
             filter_fn = lambda n: hasattr(n, 'index') and n.index == target_node.index
             target_node_temp = temptree.find_node(filter_fn=filter_fn)
@@ -511,56 +528,60 @@ def nu_trees(nu,target_node,tree_path,status):
 # **********************************************************************************************************************
 def give_best_nu(X,tree_path,clonal,target_node,X_child_order,status,my_nu):
     if status == 2:
-        score = np.zeros((3, len(my_nu)))
-        for id, nu in enumerate(my_nu):
-            # print(nu)
-            r_trees, child_order, r_node = nu_trees(nu, target_node, tree_path, status)
-            # print(r_node)
-            # print(X_child_order)
-            # print("child_order:",child_order)
-            for h in range(0, len(r_trees)):
-                model = phyloLL_HMM(n_components=2, trees=[clonal, r_trees[h]], model=GTR_sample,child_order=child_order, X_child_order=X_child_order)
-                model.startprob_ = p_start
-                model.transmat_ = p_trans
-                s = model.score(X)
-                score[h][id] = s
+        # score = np.zeros((3, len(my_nu)))
+        # for id, nu in enumerate(my_nu):
+        #     # print(nu)
+        #     r_trees, child_order, r_node = nu_trees(nu, target_node, tree_path, status)
+        #     # print(r_node)
+        #     # print(X_child_order)
+        #     # print("child_order:",child_order)
+        #     for h in range(0, len(r_trees)):
+        #         model = phyloLL_HMM(n_components=2, trees=[clonal, r_trees[h]], model=GTR_sample,child_order=child_order, X_child_order=X_child_order)
+        #         model.startprob_ = p_start
+        #         model.transmat_ = p_trans
+        #         s = model.score(X)
+        #         score[h][id] = s
+        #
+        # best_nu = []
+        # for h in range(0, len(r_trees)):
+        #     kid_score = list(score[h])
+        #     # print("score:", kid_score)
+        #     score_plot_one(kid_score, my_nu, target_node.index,status,r_node[h])
+        #     best_nu.append(my_nu[kid_score.index(max(kid_score))])
+        #
+        # print("best_nu:" ,best_nu)
+
 
         best_nu = []
-        for h in range(0, len(r_trees)):
-            kid_score = list(score[h])
-            # print("score:", kid_score)
-            score_plot_one(kid_score, my_nu, target_node.index,status,r_node[h])
-            best_nu.append(my_nu[kid_score.index(max(kid_score))])
+        def fn(h,nu):
+            r_trees, child_order , r_node = nu_trees(nu, target_node, tree_path, status)
+            model = phyloLL_HMM(n_components=status, trees= [clonal, r_trees[h]], model=GTR_sample, child_order=child_order, X_child_order=X_child_order)
+            model.startprob_ = p_start
+            model.transmat_ = p_trans
+            s = model.score(X)
+            # print(p_trans)
+            # print(h, nu, s)
+            return -s
 
-        print("best_nu:" ,best_nu)
+        def fn0(nu):
+            return fn(0,nu)
+        def fn1(nu):
+            return fn(1,nu)
+        def fn2(nu):
+            return fn(2,nu)
 
 
-        # best_nu = []
-        # def fn(h,nu):
-        #     r_trees, child_order , r_node = nu_trees(nu, target_node, tree_path, status)
-        #     model = phyloLL_HMM(n_components=status, trees= [clonal, r_trees[h]], model=GTR_sample, child_order=child_order, X_child_order=X_child_order)
-        #     # model = phyloLL_HMM(n_components=status, trees=[clonal, r_trees[child_order.index(X_child_order[h])]], model=GTR_sample,  child_order=child_order, X_child_order=X_child_order)
-        #     model.startprob_ = p_start
-        #     model.transmat_ = p_trans
-        #     s = model.score(X)
-        #     # print(h, nu, s)
-        #     return -s
-        #
-        # def fn0(nu):
-        #     return fn(0,nu)
-        # def fn1(nu):
-        #     return fn(1,nu)
-        # def fn2(nu):
-        #     return fn(2,nu)
-        #
-        # result = spo.minimize_scalar(fn0, method="bounded", bounds=(0.001, 0.1) , options={'disp': 1})
-        # best_nu.append(result.x)
-        #
-        # result1 = spo.minimize_scalar(fn1, method="bounded", bounds=(0.001, 0.1) , options={'disp': 1})
-        # best_nu.append(result1.x)
-        #
-        # result2 = spo.minimize_scalar(fn2, method="bounded", bounds=(0.001, 0.1) , options={'disp': 1}) #bounded
-        # best_nu.append(result2.x)
+        result = spo.minimize_scalar(fn0, method="bounded", bounds=(0.0, 0.1) , options={'disp': 1})
+        best_nu.append(result.x)
+        # print(result)
+
+        result1 = spo.minimize_scalar(fn1, method="bounded", bounds=(0.0, 0.1) , options={'disp': 1})
+        best_nu.append(result1.x)
+        # print(result1)
+
+        result2 = spo.minimize_scalar(fn2, method="bounded", bounds=(0.0, 0.1) , options={'disp': 1})
+        best_nu.append(result2.x)
+        # print(result2)
 
 
     if status == 8:
@@ -612,8 +633,8 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
         recombination_trees = []
         recombination_nodes = []
         child_order = []
-        mytree.append(Tree.get_from_path(tree_path, 'newick'))
-        # mytree[id_tree].reroot_at_midpoint(update_bipartitions=False)
+        mytree.append(Tree.get_from_path(tree_path, 'newick', rooting='force-rooted'))
+        mytree[id_tree].reroot_at_midpoint(update_bipartitions=True)
         set_index(mytree[id_tree],alignment)
 
         # ----------- Step 1 : Make input for hmm ------------------------------------------------------
@@ -624,7 +645,7 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
 
         # --------------  Step 1.2: Calculate X based on this re-rooted tree
         X = make_hmm_input_mixture(mytree[id_tree],alignment_len,column,tipdata,GTR_sample,tips_num)
-        # print(X[57500])
+        print(X[500])
 
 
         # to keep the order of clonal tree children
@@ -638,12 +659,9 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
             nu = give_best_nu(X, tree_path, recombination_trees[0], target_node, X_child_order,status,my_nu)
             best_nu.append([target_node.index, nu])
             # ----------- Step 2: make recombination trees -----------------------------------------------
-
-            temptree = Tree.get_from_path(tree_path, 'newick')
-            # temptree.reroot_at_midpoint(update_bipartitions=False)
+            temptree = Tree.get_from_path(tree_path, 'newick', rooting='force-rooted')
+            temptree.reroot_at_midpoint(update_bipartitions=True)
             set_index(temptree,alignment)
-
-
             filter_fn = lambda n: hasattr(n, 'index') and n.index == target_node.index
             target_node_temp = temptree.find_node(filter_fn=filter_fn)
             temptree.reroot_at_node(target_node_temp, update_bipartitions=False, suppress_unifurcations=True)
@@ -652,18 +670,11 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
 
             for k1, kid1 in enumerate(kids):
                 child_order.append(kid1.index)  # keep the order of children after reroot
-                temptree = Tree.get_from_path(tree_path, 'newick')
-                # temptree.reroot_at_midpoint(update_bipartitions=False)
-                set_index(temptree,alignment)
-                filter_fn = lambda n: hasattr(n, 'index') and n.index == target_node.index
-                target_node_temp = temptree.find_node(filter_fn=filter_fn)
-                temptree.reroot_at_node(target_node_temp, update_bipartitions=False, suppress_unifurcations=True)
-
+                r_temptree = temptree.clone(depth=0)
                 # recombination_trees.append(recom_maker(temptree, kid1.index, nu))
-                recombination_trees.append(recom_maker(temptree, kid1.index, nu[k1]))
+                recombination_trees.append(recom_maker(r_temptree, kid1.index, nu[k1]))
                 recombination_nodes.append(kid1)
 
-            print("main function:",recombination_nodes)
             # ----------- Step 3: Call phyloHMM -----------------------------------------------------
             for h in range(1, len(recombination_trees)):
                 model = phyloLL_HMM(n_components=status, trees=[recombination_trees[0], recombination_trees[h]],model=GTR_sample, child_order=child_order, X_child_order=X_child_order)
@@ -689,8 +700,8 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
                 r_node.append(recombination_nodes[h - 1].index)
                 t_node.append(target_node.index)
 
-                tree_updatePartial = Tree.get_from_path(tree_path, 'newick')
-                # tree_updatePartial.reroot_at_midpoint(update_bipartitions=False)
+                tree_updatePartial = Tree.get_from_path(tree_path, 'newick', rooting='force-rooted')
+                tree_updatePartial.reroot_at_midpoint(update_bipartitions=False)
                 set_index(tree_updatePartial,alignment)
                 # filter_fn = lambda n: hasattr(n, 'index') and n.index == X_child_order[h-1]
                 filter_fn = lambda n: hasattr(n, 'index') and n.index == recombination_nodes[h - 1].index
@@ -707,7 +718,8 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
             best_nu.append([target_node.index,nu])
 
             # ----------- Step 2: make recombination trees -----------------------------------------------
-            temptree = Tree.get_from_path(tree_path, 'newick')
+            temptree = Tree.get_from_path(tree_path, 'newick' , rooting='force-rooted')
+            temptree.reroot_at_midpoint(update_bipartitions=True)
             set_index(temptree,alignment)
 
             filter_fn = lambda n: hasattr(n, 'index') and n.index == target_node.index
@@ -724,7 +736,8 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
 
             kids.sort(key=myFunc)
             for k1, kid1 in enumerate(kids):
-                temptree = Tree.get_from_path(tree_path, 'newick')
+                temptree = Tree.get_from_path(tree_path, 'newick' , rooting='force-rooted')
+                temptree.reroot_at_midpoint(update_bipartitions=True)
                 set_index(temptree,alignment)
                 filter_fn = lambda n: hasattr(n, 'index') and n.index == target_node.index
                 target_node_temp = temptree.find_node(filter_fn=filter_fn)
@@ -800,7 +813,8 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
             t_node.append(target_node.index)
             single_posterior.append(p[:, 7])
 
-            tree_updatePartial = Tree.get_from_path(tree_path, 'newick')
+            tree_updatePartial = Tree.get_from_path(tree_path, 'newick' , rooting='force-rooted')
+            tree_updatePartial.reroot_at_midpoint(update_bipartitions=True)
             set_index(tree_updatePartial,alignment)
             filter_fn = lambda n: hasattr(n, 'index') and n.index == target_node.index
             target_node_partial = tree_updatePartial.find_node(filter_fn=filter_fn)
@@ -824,6 +838,121 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
 
     return tipdata,posterior0,posterior1,hiddenStates,score,recom_prob,r_node,t_node,best_nu
 # **********************************************************************************************************************
+
+def phylohmm_two(tree,alignment_len,column,nu,p_start,p_trans,tips_num,status):
+    mytree = []
+    posterior0 = []
+    posterior1 = []
+    hiddenStates = []
+    score = []
+    tipdata = set_tips_partial(column,tips_num)
+    r_node = []
+    t_node = []
+    single_posterior = []
+
+    # print(tree.as_ascii_plot(show_internal_node_labels=True))
+
+    best_nu = []
+
+    for id_tree, target_node in enumerate(tree.postorder_internal_node_iter(exclude_seed_node=True)):
+        print(target_node.index)
+        recombination_trees = []
+        recombination_nodes = []
+        child_order = []
+        mytree.append(Tree.get_from_path(tree_path, 'newick',rooting='force-rooted'))
+        mytree[id_tree].reroot_at_midpoint(update_bipartitions=True)
+        set_index(mytree[id_tree],alignment)
+
+        # ----------- Step 1 : Make input for hmm ------------------------------------------------------
+        # --------------  Stetp 1.1 : re-root the tree based on the target node where the target node is each internal node of the tree.
+
+        # mytree[id_tree].reroot_at_node(target_node, update_bipartitions=False, suppress_unifurcations=True)
+        recombination_trees.append(mytree[id_tree].as_string(schema="newick"))
+
+        # --------------  Step 1.2: Calculate X based on this re-rooted tree
+        X = make_hmm_input_mixture_two(mytree[id_tree],alignment_len,column,tipdata,GTR_sample,tips_num,target_node)
+
+        # to keep the order of clonal tree children
+        X_child_order = []
+        for id, child in enumerate(target_node.child_node_iter()):
+            X_child_order.append(child.index)
+
+        my_nu = np.arange(0.01, 0.1, 0.01)
+        if status == 2 :
+            # -------------- find best nu ----------------------
+            nu = give_best_nu(X, tree_path, recombination_trees[0], target_node, X_child_order,status,my_nu)
+            best_nu.append([target_node.index, nu])
+
+    #         # ----------- Step 2: make recombination trees -----------------------------------------------
+    #         temptree = Tree.get_from_path(tree_path, 'newick')
+    #         set_index(temptree,alignment)
+    #         filter_fn = lambda n: hasattr(n, 'index') and n.index == target_node.index
+    #         target_node_temp = temptree.find_node(filter_fn=filter_fn)
+    #         temptree.reroot_at_node(target_node_temp, update_bipartitions=False, suppress_unifurcations=True)
+    #         kids = temptree.seed_node.child_nodes()
+    #         # print(kids)
+    #
+    #         for k1, kid1 in enumerate(kids):
+    #             child_order.append(kid1.index)  # keep the order of children after reroot
+    #             r_temptree = temptree.clone(depth=0)
+    #             # recombination_trees.append(recom_maker(temptree, kid1.index, nu))
+    #             recombination_trees.append(recom_maker(r_temptree, kid1.index, nu[k1]))
+    #             recombination_nodes.append(kid1)
+    #
+    #         # ----------- Step 3: Call phyloHMM -----------------------------------------------------
+    #         for h in range(1, len(recombination_trees)):
+    #             model = phyloLL_HMM(n_components=status, trees=[recombination_trees[0], recombination_trees[h]],model=GTR_sample, child_order=child_order, X_child_order=X_child_order)
+    #             model.startprob_ = p_start
+    #
+    #             p_trans_nu0 = np.array([[1, 0],
+    #                                     [1, 0]])
+    #
+    #             if nu[h-1] <= my_nu[0]:
+    #                 model.transmat_ = p_trans_nu0
+    #             else:
+    #                 model.transmat_ = p_trans
+    #
+    #             # model.transmat_ = p_trans
+    #
+    #             p = model.predict_proba(X)
+    #             hidden = model.predict(X)
+    #             posterior0.append(p[:,0])
+    #             posterior1.append(p[:,1])
+    #             hiddenStates.append(hidden)
+    #             score.append(model.score(X))
+    #
+    #             r_node.append(recombination_nodes[h - 1].index)
+    #             t_node.append(target_node.index)
+    #
+    #             tree_updatePartial = Tree.get_from_path(tree_path, 'newick')
+    #             # tree_updatePartial.reroot_at_midpoint(update_bipartitions=False)
+    #             set_index(tree_updatePartial,alignment)
+    #             # filter_fn = lambda n: hasattr(n, 'index') and n.index == X_child_order[h-1]
+    #             filter_fn = lambda n: hasattr(n, 'index') and n.index == recombination_nodes[h - 1].index
+    #             update_child = tree_updatePartial.find_node(filter_fn=filter_fn)
+    #             if update_child.is_leaf():
+    #                 update_mixture_partial_PSE(column, update_child, tipdata, p, status, 1,nu[h-1])
+    #                 # update_mixture_partial(column,update_child, tipdata, p,status, 1)
+    #                 # update_mixture_partial_PSE(column, update_child, tipdata, p, status, 1, nu)
+    #
+    #
+    #
+    #
+    #
+    # if status == 2:
+    #     np.set_printoptions(threshold=np.inf)
+    #     myposterior0 = np.array(posterior0, dtype='double')
+    #     myposterior1 = np.array(posterior1, dtype='double')
+    #     recom_prob = pd.DataFrame({'recom_nodes': r_node, 'target_node': t_node, 'posterior0': pd.Series(list(myposterior0)) , 'posterior1': pd.Series(list(myposterior1))})
+
+
+
+
+    return tipdata,posterior0,posterior1,hiddenStates,score,recom_prob,r_node,t_node,best_nu
+# **********************************************************************************************************************
+
+
+
 def make_CATG_file(tips_num,alignment,alignment_len,tipdata,column,tree,outputname,error_flag):
     taxon = tree.taxon_namespace
     myfile = open(outputname, 'w')
@@ -878,12 +1007,12 @@ if __name__ == "__main__":
     # path = os.path.dirname(os.path.abspath(__file__))
 
 
-    # path = '/home/nehleh/Desktop/sisters/mutiple_sisters/'
-    # tree_path = path+'/num_1_RAxML_bestTree.tree'
-    # genomefile = path+'/num_1_wholegenome_1.fasta'
-    # baciSimLog = path+'/BaciSim_Log.txt'
-    # clonal_path = path+'/clonaltree.tree'
-    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
+    path = '/home/nehleh/Desktop/sisters/mutiple_sisters/'
+    tree_path = path+'/num_1_RAxML_bestTree.tree'
+    genomefile = path+'/num_1_wholegenome_1.fasta'
+    baciSimLog = path+'/BaciSim_Log.txt'
+    clonal_path = path+'/clonaltree.tree'
+    json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
     # path = '/home/nehleh/PhiloBacteria/Results_slides/num_4'
     # tree_path = path+'/num_4_recom_1_RAxML_bestTree.tree'
@@ -912,9 +1041,9 @@ if __name__ == "__main__":
 
     # parser.add_argument('-xml', "--xmlFile", type=str, default='/home/nehleh/PhiloBacteria/bin/template/GTR_template.xml' ,help='xmlFile')
 
-    tree_path = args.raxmltree
-    genomefile = args.alignmentFile
-    json_path = args.jsonFile
+    # tree_path = args.raxmltree
+    # genomefile = args.alignmentFile
+    # json_path = args.jsonFile
     pi = args.frequencies
     rates = args.rates
     nu = args.nuHmm
@@ -926,54 +1055,44 @@ if __name__ == "__main__":
     simulation = args.simulation
 
     # ============================================ setting parameters ==================================================
-    tree = Tree.get_from_path(tree_path, 'newick')
+    tree = Tree.get_from_path(tree_path, schema='newick', rooting='force-rooted')
+    tree.reroot_at_midpoint(update_bipartitions=True)
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
-
-    # tree.reroot_at_midpoint(update_bipartitions=False)
-
     set_index(tree, alignment)
+    print(tree.as_ascii_plot(show_internal_node_labels=True))
 
     nodes_number = len(tree.nodes())
     # print("nodes_number:",nodes_number)
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
-    set_index(tree,alignment)
     GTR_sample = GTR_model(rates, pi)
     column = get_DNA_fromAlignment(alignment)
 
-    # print(column)
-    # print(nodes_number)
-    print(tree.as_ascii_plot(show_internal_node_labels=True))
 
     if initialstat.find('2') != -1:
         status = 2
         p_start = np.array([0.9, 0.1])
-        p_trans = np.array([[1-(1/alignment_len), 1/alignment_len],
-                            [1/alignment_len, 1-(1/alignment_len)]])
-        # p_trans = np.array([[0.9999,0.0001],
-        #                    [0.0001,0.9999]])
+        # p_trans = np.array([[1-(1/alignment_len), 1/alignment_len],
+        #                     [1/alignment_len, 1-(1/alignment_len)]])
+        p_trans = np.array([[0.9,0.1],
+                           [0.1,0.9]])
 
         start = time.time()
         tipdata, posterior0, posterior1, hiddenStates, score, recom_prob, r_node, t_node, best_nu = phylohmm(tree,alignment_len,column,nu, p_start, p_trans,tips_num,status)
         end = time.time()
         print("time phylohmm",end - start)
 
-        # print(recom_prob)
-        # print(tipdata[40000])
-
-        # pd.options.display.max_colwidth = None
         start = time.time()
         recom_prob.to_hdf('Recom_prob_two.h5', key='prob' ,mode='w')
         end = time.time()
         print("time recom_prob.to_hdf",end - start)
 
 
-        c_tree = Tree.get_from_path(tree_path, 'newick')
+        c_tree = Tree.get_from_path(tree_path, 'newick' , rooting='force-rooted')
+        c_tree.reroot_at_midpoint(update_bipartitions=False)
         set_index(c_tree,alignment)
-        # c_tree.reroot_at_midpoint(update_bipartitions=False)
         internal_plot(c_tree,posterior0,posterior1,hiddenStates,score,r_node,t_node,status)
         write_best_nu(best_nu,'PB_nu_two.txt')
-        # make_CATG_file(tips_num, alignment, alignment_len, tipdata, column, tree, 'PB_Two.catg', 0)
         start= time.time()
         make_physher_json_partial(tipdata, tree, json_path, 'PB_two.json')
         end = time.time()
@@ -1004,7 +1123,8 @@ if __name__ == "__main__":
 
 
 
-        c_tree = Tree.get_from_path(tree_path, 'newick')
+        c_tree = Tree.get_from_path(tree_path, 'newick', rooting='force-rooted')
+        c_tree.reroot_at_midpoint(update_bipartitions=True)
         set_index(c_tree,alignment)
         # internal_plot(c_tree, posterior, hiddenStates, score, r_node, t_node, status)
         # phyloHMMData8 = recom_resultFig_dm(recom_prob,tips_num,threshold,status,'PB_Recom_eight.jpeg')
