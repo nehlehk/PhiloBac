@@ -252,6 +252,80 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
 
     return tipdata,recom_prob
 # **********************************************************************************************************************
+def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
+    mytree = []
+    tipdata = set_tips_partial(column,tips_num)
+    posterior0 = []
+    posterior1 = []
+    hiddenStates = []
+    score = []
+    t_node = []
+
+    # make persite likelihood and per site partail for all nodes including tips and internal nodes
+    persite_ll, partial = computelikelihood_mixture(tree, alignment_len, tipdata, GTR_sample, tips_num)
+
+    # each node play the role of target nodes
+    for id_tree, target_node in enumerate(tree.postorder_node_iter()):
+        if target_node != tree.seed_node:
+            # print(target_node)
+            recombination_trees = []
+            mytree.append(Tree.get_from_path(tree_path, 'newick', rooting='force-rooted'))
+            set_index(mytree[id_tree],alignment)
+            #     step 1 --- make hmm input
+            #  take the partial of the target node as input of hmm
+            X = partial[:,target_node.index,:]
+
+
+            #     step 2 --- make recombiantion tree
+            my_nu = np.arange(0.01, 0.1, 0.01)
+            recombination_trees.append(mytree[id_tree].as_string(schema="newick"))
+            # find the best nu for target branch based on the miximizing score value of hmm
+            nu = give_best_nu(X, tree_path, recombination_trees[0],target_node,tipdata)
+            # print(nu)
+            # make recombiantion tree for target node using best nu
+            recombination_trees.append(recom_maker(mytree[id_tree], target_node.index, nu))
+
+            emission = compute_logprob_phylo(X, recombination_trees, GTR_sample, tipdata, alignment_len)
+
+            best_trans = baum_welch(X, p_trans, emission, p_start, n_iter=10)
+
+            print(best_trans)
+
+            #  step 3 --- call hmm
+            # call hmm, emission probability in the hmm is persite likelihood of clonal tree (raxml tree) and recombiantion tree (step 2)
+            model = phyloLL_HMM(n_components=2, trees=recombination_trees, model=GTR_sample,tipPartial=tipdata,alignment_len=alignment_len)
+            model.startprob_ = p_start
+            # model.transmat_ = p_trans
+
+            #     transition probability when there is no recombination
+            p_trans_nu0 = np.array([[1, 0],
+                                    [1, 0]])
+
+            if nu <= my_nu[0]: # if the best nu is smaller than a threshod, we consider there is no recombiantion on that branch
+                model.transmat_ = p_trans_nu0
+            else:
+                model.transmat_ = best_trans
+                # model.transmat_ = p_trans
+
+            p = model.predict_proba(X)
+            posterior0.append(p[:, 0])  # posterior probality for clonal tree
+            posterior1.append(p[:, 1])  # posterior probality for recombination tree
+            t_node.append(target_node.index)
+            # hidden = model.predict(X)
+            # hiddenStates.append(hidden)
+            # score.append(model.score(X))
+            # Update tip partial based posterior probality
+            if target_node.is_leaf():
+                update_mixture_partial_PSE(column, target_node, tipdata, p, 1, nu)
+
+
+    np.set_printoptions(threshold=np.inf)
+    myposterior0 = np.array(posterior0, dtype='double')
+    myposterior1 = np.array(posterior1, dtype='double')
+    recom_prob = pd.DataFrame( {'recom_nodes': t_node, 'posterior0': pd.Series(list(myposterior0)),'posterior1': pd.Series(list(myposterior1))})
+
+    return tipdata,recom_prob
+# **********************************************************************************************************************
 def make_physher_json_partial(tipdata,tree,json_path,outputname):
     my_tipdata = tipdata.transpose(1, 0, 2)
     with open(json_path) as json_file:
@@ -270,12 +344,65 @@ def make_physher_json_partial(tipdata,tree,json_path,outputname):
     json.dump(data, jsonFile, indent=4)
     jsonFile.close()
 # **********************************************************************************************************************
+def forward(X, trans, emission, initial_distribution):
+    alpha = np.zeros((X.shape[0], trans.shape[0]))
+    alpha[0, :] = initial_distribution * emission[0]
+    for t in range(1, X.shape[0]):
+        for j in range(trans.shape[0]):
+            alpha[t, j] = alpha[t - 1].dot(trans[:, j]) * emission[t, j]
+
+    return alpha
+# **********************************************************************************************************************
+def backward(X, trans, emission):
+    beta = np.zeros((X.shape[0], trans.shape[0]))
+
+    # setting beta(T) = 1
+    beta[X.shape[0] - 1] = np.ones((trans.shape[0]))
+
+    # Loop in backward way from T-1 to
+    for t in range(X.shape[0] - 2, -1, -1):
+        for j in range(trans.shape[0]):
+            beta[t, j] = (beta[t + 1] * emission[t + 1, :]).dot(trans[j, :])
+
+    return beta
+# **********************************************************************************************************************
+def baum_welch(X, trans, emission, initial_distribution, n_iter=1):
+    M = trans.shape[0]
+    T = len(X)
+
+    for n in range(n_iter):
+        alpha = forward(X, trans, emission, initial_distribution)
+        beta = backward(X, trans, emission)
+
+        gamma = np.zeros((M, T - 1))
+        xi = np.zeros((M, M, T - 1))
+        for t in range(T - 1):
+            gamma[:, t] = (alpha[t, :] * beta[t, :]) / np.dot(alpha[t, :], beta[t, :])
+            denominator = np.dot(np.dot(alpha[t, :].T, trans) * emission[t + 1].T, beta[t + 1, :])
+            for i in range(M):
+                numerator = alpha[t, i] * trans[i, :] * emission[t + 1].T * beta[t + 1, :].T
+                xi[i, :, t] = numerator / denominator
+
+        trans = np.sum(xi, 2) / np.sum(gamma, axis=1).reshape((-1, 1))
+
+        # Add additional T'th element in gamma
+        # gamma = np.hstack((gamma , (alpha[T-1, :] * beta[T-1, :] / np.dot(alpha[T-1, :] , beta[T-1, :])).reshape((-1, 1)) ))
+
+        # denominator = np.sum(gamma, axis=1)
+        # print(denominator)
+        # print((np.sum(gamma, axis=0)))
+        # for t in range(T):
+        #     emission[t, :] = np.sum(gamma)
+
+        # emission = np.divide(emission, denominator)
+
+    return trans
+# **********************************************************************************************************************
+
 
 
 if __name__ == "__main__":
-
     # path = os.path.dirname(os.path.abspath(__file__))
-
 
     # path = '/home/nehleh/Desktop/sisters/mutiple_sisters/'
     # tree_path = path+'/num_1_RAxML_bestTree.tree'
@@ -284,13 +411,13 @@ if __name__ == "__main__":
     # clonal_path = path+'/clonaltree.tree'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
-    # path = '/home/nehleh/PhiloBacteria/Results_slides/num_4'
-    # tree_path = path+'/num_4_recom_1_RAxML_bestTree.tree'
-    # # tree_path = path+'/num_1_beasttree.newick'
-    # clonal_path = path+'/num_4_Clonaltree.tree'
-    # genomefile = path+'/num_4_recom_1_Wholegenome_4_1.fasta'
-    # baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
-    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
+    path = '/home/nehleh/PhiloBacteria/Results_slides/num_4'
+    tree_path = path+'/num_4_recom_1_RAxML_bestTree.tree'
+    # tree_path = path+'/num_1_beasttree.newick'
+    clonal_path = path+'/num_4_Clonaltree.tree'
+    genomefile = path+'/num_4_recom_1_Wholegenome_4_1.fasta'
+    baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
+    json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
@@ -309,9 +436,9 @@ if __name__ == "__main__":
     parser.add_argument('-sim', "--simulation", type=int, default=1, help='1 for the simulation data and 0 for emprical sequence')
     args = parser.parse_args()
 
-    tree_path = args.raxmltree
-    genomefile = args.alignmentFile
-    json_path = args.jsonFile
+    # tree_path = args.raxmltree
+    # genomefile = args.alignmentFile
+    # json_path = args.jsonFile
     pi = args.frequencies
     rates = args.rates
     nu = args.nuHmm
@@ -341,7 +468,8 @@ if __name__ == "__main__":
 
     #  doing hmm
     start = time.time()
-    tipdata,recom_prob= phylohmm(tree,alignment_len,column,nu, p_start, p_trans,tips_num)
+    # tipdata,recom_prob= phylohmm(tree,alignment_len,column,nu, p_start, p_trans,tips_num)
+    tipdata, recom_prob = phylohmm_baumwelch(tree, alignment_len, column, nu, p_start, p_trans, tips_num)
     end = time.time()
     print("time phylohmm", end - start)
 
