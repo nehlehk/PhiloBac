@@ -109,6 +109,17 @@ def compute_logprob_phylo(X,recom_trees,model,tip_partial,alignment_len):
 
     return result
 # **********************************************************************************************************************
+def compute_logprob_phylo_bw(X,recom_trees,model,tip_partial,alignment_len):
+    n, dim = X.shape
+    result = np.zeros((n, len(recom_trees)))
+    for tree_id, item in enumerate(recom_trees):
+        state_tree = dendropy.Tree.get(data=item, schema="newick")
+        set_index(state_tree,alignment)
+        persite_ll, partial = computelikelihood_mixture_bw(state_tree, alignment_len, tip_partial, model, tips_num)
+        result[:, tree_id] = persite_ll
+
+    return result
+# **********************************************************************************************************************
 def set_tips_partial(column,tips_num):
     partial = np.zeros(((alignment_len, tips_num, 4)))
     for tip in range(tips_num):
@@ -131,6 +142,22 @@ def computelikelihood_mixture(tree,alignment_len,tip_partial,model,tips_num):
                 partial_new[..., node.index] *= np.dot(model.p_matrix(children[i].edge_length), partial_new[..., children[i].index])
 
     persite_ll = np.log(model.get_pi() @ partial_new[..., tree.seed_node.index])
+
+    return persite_ll, partial
+# **********************************************************************************************************************
+def computelikelihood_mixture_bw(tree,alignment_len,tip_partial,model,tips_num):
+    partial = np.zeros(((alignment_len,(2 * tips_num) -1, 4)))
+    partial[:,0:tips_num,:] = tip_partial
+    persite_ll = np.zeros(alignment_len)
+    partial_new =  np.rollaxis(partial, 2, 0)
+    for node in tree.postorder_node_iter():
+        if not node.is_leaf():
+            children = node.child_nodes()
+            partial_new[..., node.index] = np.dot(model.p_matrix(children[0].edge_length), partial_new[..., children[0].index])
+            for i in range(1, len(children)):
+                partial_new[..., node.index] *= np.dot(model.p_matrix(children[i].edge_length), partial_new[..., children[i].index])
+
+    persite_ll = (model.get_pi() @ partial_new[..., tree.seed_node.index])
 
     return persite_ll, partial
 # **********************************************************************************************************************
@@ -285,9 +312,10 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
             # make recombiantion tree for target node using best nu
             recombination_trees.append(recom_maker(mytree[id_tree], target_node.index, nu))
 
-            emission = compute_logprob_phylo(X, recombination_trees, GTR_sample, tipdata, alignment_len)
+            emission = compute_logprob_phylo_bw(X, recombination_trees, GTR_sample, tipdata, alignment_len)
 
-            best_trans = baum_welch(X, p_trans, emission, p_start, n_iter=10)
+
+            best_trans = baum_welch(X, p_trans, emission, p_start, n_iter=1)
 
             print(best_trans)
 
@@ -346,16 +374,19 @@ def make_physher_json_partial(tipdata,tree,json_path,outputname):
 # **********************************************************************************************************************
 def forward(X, trans, emission, initial_distribution):
     alpha = np.zeros((X.shape[0], trans.shape[0]))
+    c = np.zeros(X.shape[0])
     alpha[0, :] = initial_distribution * emission[0]
     for t in range(1, X.shape[0]):
         for j in range(trans.shape[0]):
             alpha[t, j] = alpha[t - 1].dot(trans[:, j]) * emission[t, j]
+        c[t] = 1/alpha[t].sum(axis=0)
+        alpha[t] *= c[t]
+        # alpha_prime[t] = c[t] * alpha[t]
 
-    return alpha
+    return alpha , c
 # **********************************************************************************************************************
-def backward(X, trans, emission):
+def backward(X, trans, emission,c):
     beta = np.zeros((X.shape[0], trans.shape[0]))
-
     # setting beta(T) = 1
     beta[X.shape[0] - 1] = np.ones((trans.shape[0]))
 
@@ -363,6 +394,7 @@ def backward(X, trans, emission):
     for t in range(X.shape[0] - 2, -1, -1):
         for j in range(trans.shape[0]):
             beta[t, j] = (beta[t + 1] * emission[t + 1, :]).dot(trans[j, :])
+        beta[t] *= c[t]
 
     return beta
 # **********************************************************************************************************************
@@ -371,8 +403,8 @@ def baum_welch(X, trans, emission, initial_distribution, n_iter=1):
     T = len(X)
 
     for n in range(n_iter):
-        alpha = forward(X, trans, emission, initial_distribution)
-        beta = backward(X, trans, emission)
+        alpha,c  = forward(X, trans, emission, initial_distribution)
+        beta = backward(X, trans, emission,c)
 
         gamma = np.zeros((M, T - 1))
         xi = np.zeros((M, M, T - 1))
@@ -404,20 +436,20 @@ def baum_welch(X, trans, emission, initial_distribution, n_iter=1):
 if __name__ == "__main__":
     # path = os.path.dirname(os.path.abspath(__file__))
 
-    # path = '/home/nehleh/Desktop/sisters/mutiple_sisters/'
-    # tree_path = path+'/num_1_RAxML_bestTree.tree'
-    # genomefile = path+'/num_1_wholegenome_1.fasta'
-    # baciSimLog = path+'/BaciSim_Log.txt'
-    # clonal_path = path+'/clonaltree.tree'
-    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
-
-    path = '/home/nehleh/PhiloBacteria/Results_slides/num_4'
-    tree_path = path+'/num_4_recom_1_RAxML_bestTree.tree'
-    # tree_path = path+'/num_1_beasttree.newick'
-    clonal_path = path+'/num_4_Clonaltree.tree'
-    genomefile = path+'/num_4_recom_1_Wholegenome_4_1.fasta'
-    baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
+    path = '/home/nehleh/Desktop/sisters/mutiple_sisters/'
+    tree_path = path+'/num_1_RAxML_bestTree.tree'
+    genomefile = path+'/num_1_wholegenome_1.fasta'
+    baciSimLog = path+'/BaciSim_Log.txt'
+    clonal_path = path+'/clonaltree.tree'
     json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
+
+    # path = '/home/nehleh/PhiloBacteria/Results_slides/num_4'
+    # tree_path = path+'/num_4_recom_1_RAxML_bestTree.tree'
+    # # tree_path = path+'/num_1_beasttree.newick'
+    # clonal_path = path+'/num_4_Clonaltree.tree'
+    # genomefile = path+'/num_4_recom_1_Wholegenome_4_1.fasta'
+    # baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
+    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
