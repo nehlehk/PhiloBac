@@ -17,7 +17,7 @@ def recom_output(pb_tree,recom_prob,tips_num,threshold,status,nodes_number):
     rmsedata = np.zeros((alignment_len,tips_num))
     if status == 2:
         for i in range(len(recom_prob)):
-            if (recom_prob['recom_nodes'][i] < tips_num):
+            if (int(recom_prob['recom_nodes'][i]) < tips_num):
                 for j in range(alignment_len):
                     if (float(recom_prob['posterior1'][i][j]) >= threshold):
                         output[j, recom_prob['recom_nodes'][i]] = 1
@@ -37,6 +37,7 @@ def recom_output(pb_tree,recom_prob,tips_num,threshold,status,nodes_number):
 # **********************************************************************************************************************
 def recom_resultFig_dm(pb_tree,recom_prob,tips_num,mixtureProb,status,outputname,nodes_number):
     output,rmsedata = recom_output(PB_tree,recom_prob,tips_num,mixtureProb,status,nodes_number)
+    # print(output)
     fig = plt.figure(figsize=(tips_num + 9, tips_num / 2))
     color = ['red', 'green', 'purple', 'blue', 'black']
     clonaltree = Tree.get_from_path(pb_tree, 'newick',rooting='force-rooted')
@@ -95,14 +96,16 @@ if __name__ == "__main__":
     # recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
 
 
-    path = '/home/nehleh/PhiloBacteria/Results_slides/num_5'
-    clonal_path = path+'/num_5_Clonaltree.tree'
-    genomefile = path+'/num_5_recom_1_Wholegenome_5_1.fasta'
-    baciSimLog = path+'/num_5_recom_1_BaciSim_Log.txt'
-    pb_tree = path+'/num_5_recom_1_physherTree_PB.newick'
+
+    path = '/home/nehleh/PhiloBacteria/Results/num_3'
+    clonal_path = path+'/num_3_Clonaltree.tree'
+    genomefile = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_Wholegenome.fasta'
+    baciSimLog = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_BaciSim_Log.txt'
+    # pb_tree = path+'/num_5_recom_1_physherTree_PB.newick'
+    pb_tree = '/home/nehleh/PhiloBacteria/bin/pb_tree.newick'
     recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
     # recomProb = path+'/num_1_recom_1_Recom_prob_two.h5'
-    baciSimStat = path+'/num_5_recom_1_Recom_stat.csv'
+    baciSimStat = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_Recom_stat.csv'
     json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
@@ -123,7 +126,7 @@ if __name__ == "__main__":
     # genomefile = args.alignmentFile
     # pb_tree = args.PBtreefile
     # recomProb = args.recomProb
-    # baciSimStat = args.recomstat
+    baciSimStat = args.recomstat
     simulation = args.simulation
     initialstat = args.status
     threshold = args.threshold
@@ -137,7 +140,7 @@ if __name__ == "__main__":
     nodes_num_pb = len(PB_tree.nodes())
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
-    recom_prob = pd.read_hdf(recomProb, key='prob')
+    recom_prob = pd.read_hdf(recomProb, key='recom_prob')
 
 
     if initialstat.find('2') != -1:

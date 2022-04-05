@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from builtins import print
-
+import multiprocessing as mp
+import concurrent.futures
 import numpy as np
 from utility import *
 import pandas as pd
@@ -21,9 +22,7 @@ from scipy.optimize import Bounds
 import os
 import sys
 import time
-import multiprocessing
-from joblib import Parallel, delayed
-from tqdm import tqdm
+
 
 
 
@@ -213,7 +212,6 @@ def give_best_nu(X,tree_path,clonal,target_node,tipdata,p_trans,p_start):
     return result.x
 # *********************************************************************************************************************
 def my_best_nu(X,tree_path,clonal,target_node,tipdata):
-
     for nu in np.arange(0.0, 0.1, 0.01):
     # nu = 0.024070380162608283
         print(nu)
@@ -273,7 +271,7 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
             my_nu = np.arange(0.01, 0.1, 0.01)
             recombination_trees.append(mytree[id_tree].as_string(schema="newick"))
             # find the best nu for target branch based on the miximizing score value of hmm
-            nu = give_best_nu(X, tree_path, recombination_trees[0],target_node,tipdata)
+            nu = give_best_nu(X, tree_path, recombination_trees[0],target_node,tipdata,p_trans,p_start)
             # print(nu)
             # make recombiantion tree for target node using best nu
             recombination_trees.append(recom_maker(mytree[id_tree], target_node.index, nu))
@@ -312,6 +310,37 @@ def phylohmm(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
 
     return tipdata,recom_prob
 # **********************************************************************************************************************
+def baumwelch_parallel(target_node):
+    print(target_node)
+    recombination_trees = []
+    clonaltree = Tree.get_from_path(tree_path, 'newick', rooting='force-rooted')
+    set_index(clonaltree, alignment)
+    my_nu = np.arange(0.0001, 0.1, 0.01)
+    recombination_trees.append(clonaltree.as_string(schema="newick"))
+    X = partial[:, target_node.index, :]
+    nu = 0.028
+    # nu = give_best_nu(X, tree_path, recombination_trees[0], target_node, tipdata, p_trans, p_start)
+    # print("nu:",nu)
+    recombination_trees.append(recom_maker(clonaltree, target_node.index, nu))
+    emission = compute_logprob_phylo_bw(X, recombination_trees, GTR_sample, tipdata, alignment_len)
+    best_trans , p = baum_welch(X, p_trans, emission, p_start, n_iter=1)
+    p = p.T
+    # print("best_trans:",best_trans)
+    # hidden = viterbi(X,best_trans,emission,p_start)
+    p_trans_nu0 = np.array([[1, 0],[1, 0]])
+    if nu <= my_nu[0]: # if the best nu is smaller than a threshod, we consider there is no recombiantion on that branch
+        trans = p_trans_nu0
+    else:
+        trans = best_trans
+    R_over_theta = -(np.log(trans[0][0]) - target_node.edge_length)
+    if trans[1][1] == 0:
+        delta = 0
+    else:
+        delta = -1/np.log(trans[1][1])
+    # if target_node.is_leaf():
+    #     update_mixture_partial_PSE(column, target_node, tipdata, p, 1, nu)
+    return p,target_node,nu
+# **********************************************************************************************************************
 def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
     mytree = []
     tipdata = set_tips_partial(column,tips_num)
@@ -324,83 +353,53 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
     persite_ll, partial = computelikelihood_mixture(tree, alignment_len, tipdata, GTR_sample, tips_num)
 
     # each node play the role of target nodes
-    # for id_tree, target_node in enumerate(tree.postorder_node_iter()):
-    #     if target_node != tree.seed_node:
-    #         print(target_node)
-    #         recombination_trees = []
-    #         mytree.append(Tree.get_from_path(tree_path, 'newick', rooting='force-rooted'))
-    #         set_index(mytree[id_tree],alignment)
-    #         #     step 1 --- make hmm input
-    #         #  take the partial of the target node as input of hmm
-    #         X = partial[:,target_node.index,:]
-    #
-    #
-    #         #     step 2 --- make recombiantion tree
-    #         my_nu = np.arange(0.0001, 0.1, 0.01)
-    #         recombination_trees.append(mytree[id_tree].as_string(schema="newick"))
-    #         # find the best nu for target branch based on the miximizing score value of hmm
-    #         nu = give_best_nu(X,tree_path,recombination_trees[0],target_node,tipdata,p_trans,p_start)
-    #         best_nu.append([target_node.index, nu])
-    #         print("nu_first:",nu)
-    #
-    #
-    #         # make recombiantion tree for target node using best nu
-    #         recombination_trees.append(recom_maker(mytree[id_tree], target_node.index, nu))
-    #         emission = compute_logprob_phylo_bw(X, recombination_trees, GTR_sample, tipdata, alignment_len)
-    #         best_trans , p = baum_welch(X, p_trans, emission, p_start, n_iter=1)
-    #         p = p.T
-    #         # print("first:",best_trans)
-    #
-    #
-    #         hidden = viterbi(X,best_trans,emission,p_start)
-    #         p_trans_nu0 = np.array([[1, 0],
-    #                                 [1, 0]])
-    #         if nu <= my_nu[0]: # if the best nu is smaller than a threshod, we consider there is no recombiantion on that branch
-    #             trans = p_trans_nu0
-    #         else:
-    #             trans = best_trans
-    #
-    #
-    #         R_over_theta = -(np.log(trans[0][0]) - target_node.edge_length)
-    #         print("R_over_theta:",R_over_theta)
-    #         if trans[1][1] == 0:
-    #             delta = 0
-    #         else:
-    #             delta = -1/np.log(trans[1][1])
-    #         print("delta:",delta)
-    #
-    #
-    #         posterior0.append(p[:, 0])  # posterior probality for clonal tree
-    #         posterior1.append(p[:, 1])  # posterior probality for recombination tree
-    #         t_node.append(target_node.index)
-    #         # Update tip partial based posterior probality
-    #         if target_node.is_leaf():
-    #             update_mixture_partial_PSE(column, target_node, tipdata, p, 1, nu)
+    for id_tree, target_node in enumerate(tree.postorder_node_iter()):
+        if target_node != tree.seed_node:
+            print(target_node)
+            recombination_trees = []
+            mytree.append(Tree.get_from_path(tree_path, 'newick', rooting='force-rooted'))
+            set_index(mytree[id_tree],alignment)
+            #     step 1 --- make hmm input
+            #  take the partial of the target node as input of hmm
+            X = partial[:,target_node.index,:]
 
+            #     step 2 --- make recombiantion tree
+            my_nu = np.arange(0.0001, 0.1, 0.01)
+            recombination_trees.append(mytree[id_tree].as_string(schema="newick"))
+            # find the best nu for target branch based on the miximizing score value of hmm
+            nu = give_best_nu(X,tree_path,recombination_trees[0],target_node,tipdata,p_trans,p_start)
+            best_nu.append([target_node.index, nu])
+            print("nu_first:",nu)
 
+            # make recombiantion tree for target node using best nu
+            recombination_trees.append(recom_maker(mytree[id_tree], target_node.index, nu))
+            emission = compute_logprob_phylo_bw(X, recombination_trees, GTR_sample, tipdata, alignment_len)
+            best_trans , p = baum_welch(X, p_trans, emission, p_start, n_iter=1)
+            p = p.T
+            # print("first:",best_trans)
 
+            hidden = viterbi(X,best_trans,emission,p_start)
+            p_trans_nu0 = np.array([[1, 0],
+                                    [1, 0]])
+            if nu <= my_nu[0]: # if the best nu is smaller than a threshod, we consider there is no recombiantion on that branch
+                trans = p_trans_nu0
+            else:
+                trans = best_trans
 
-    nodes = []
-    for target_node in tree.postorder_node_iter():
-        nodes.append(target_node)
-    clonaltree = Tree.get_from_path(tree_path, 'newick', rooting='force-rooted')
-    set_index(clonaltree, alignment)
-    my_nu = np.arange(0.0001, 0.1, 0.01)
-    def myfunction(target_node):
-        print(target_node)
-        recombination_trees = []
-        recombination_trees.append(clonaltree.as_string(schema="newick"))
-        X = partial[:, target_node.index, :]
-        nu = 0.028
-        nu = give_best_nu(X, tree_path, recombination_trees[0], target_node, tipdata, p_trans, p_start)
-        recombination_trees.append(recom_maker(clonaltree, target_node.index, nu))
-        print(recombination_trees)
-        # emission = compute_logprob_phylo_bw(X, recombination_trees, GTR_sample, tipdata, alignment_len)
-        return recombination_trees
+            R_over_theta = -(np.log(trans[0][0]) - target_node.edge_length)
+            print("R_over_theta:",R_over_theta)
+            if trans[1][1] == 0:
+                delta = 0
+            else:
+                delta = -1/np.log(trans[1][1])
+            print("delta:",delta)
 
-    results = Parallel(n_jobs=num_cores)(delayed(myfunction)(target_node) for target_node in nodes)
-    # print(results)
-
+            posterior0.append(p[:, 0])  # posterior probality for clonal tree
+            posterior1.append(p[:, 1])  # posterior probality for recombination tree
+            t_node.append(target_node.index)
+            # Update tip partial based posterior probality
+            if target_node.is_leaf():
+                update_mixture_partial_PSE(column, target_node, tipdata, p, 1, nu)
 
 
     np.set_printoptions(threshold=np.inf)
@@ -423,6 +422,16 @@ def make_physher_json_partial(tipdata,tree,json_path,outputname):
 
         partial = dict(zip(taxon, seq))
         data['model']['sitepattern']['partials'] = partial
+        data['model']['tree']['newick'] = str(tree)
+
+    jsonFile = open(outputname, "w")
+    json.dump(data, jsonFile, indent=4)
+    jsonFile.close()
+# **********************************************************************************************************************
+def make_physher_json_partial_1(partial_dict,tree,json_path,outputname):
+    with open(json_path) as json_file:
+        data = json.load(json_file)
+        data['model']['sitepattern']['partials'] = partial_dict
         data['model']['tree']['newick'] = str(tree)
 
     jsonFile = open(outputname, "w")
@@ -542,12 +551,12 @@ if __name__ == "__main__":
     # clonal_path = path+'/clonaltree.tree'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
-    path = '/home/nehleh/PhiloBacteria/Results_slides/num_5'
-    tree_path = path+'/num_5_recom_1_RAxML_bestTree.tree'
+    path = '/home/nehleh/PhiloBacteria/Results/num_3'
+    tree_path = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_RAxML_bestTree.tree'
     # tree_path = path+'/num_1_beasttree.newick'
-    clonal_path = path+'/num_5_Clonaltree.tree'
-    genomefile = path+'/num_5_recom_1_Wholegenome_5_1.fasta'
-    baciSimLog = path+'/num_5_recom_1_BaciSim_Log.txt'
+    clonal_path = path+'/num_3_Clonaltree.tree'
+    genomefile = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_Wholegenome.fasta'
+    baciSimLog = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_BaciSim_Log.txt'
     json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
@@ -578,8 +587,7 @@ if __name__ == "__main__":
     threshold = args.threshold
     simulation = args.simulation
 
-    num_cores = multiprocessing.cpu_count()
-    # inputs = myList
+    num_cores = mp.cpu_count()
 
     # ============================================ setting parameters ==================================================
     tree = Tree.get_from_path(tree_path, schema='newick', rooting='force-rooted')
@@ -603,22 +611,69 @@ if __name__ == "__main__":
     #  doing hmm
     start = time.time()
     # tipdata,recom_prob= phylohmm(tree,alignment_len,column,nu, p_start, p_trans,tips_num)
-    tipdata, recom_prob = phylohmm_baumwelch(tree, alignment_len, column, nu, p_start, p_trans, tips_num)
+    # tipdata, recom_prob = phylohmm_baumwelch(tree, alignment_len, column, nu, p_start, p_trans, tips_num)
+
+
+    posterior0 = []
+    posterior1 = []
+    nodes = []
+    tnodes= []
+    np.set_printoptions(threshold=np.inf)
+    tipdata = set_tips_partial(column, tips_num)
+    persite_ll, partial = computelikelihood_mixture(tree, alignment_len, tipdata, GTR_sample, tips_num)
+    for node in tree.postorder_node_iter():
+        nodes.append(node)
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        results = [executor.submit(baumwelch_parallel, target_node) for target_node in nodes]
+        # results = [executor.submit(baumwelch_parallel, mylist[10])]
+        for res in concurrent.futures.as_completed(results):
+            p = res.result()[0]
+            target_node = res.result()[1]
+            nu = res.result()[2]
+            posterior0.append(np.array(p[:, 0], dtype='double')) # posterior probality for clonal tree
+            posterior1.append(np.array(p[:, 1], dtype='double')) # posterior probality for recombination tree
+            tnodes.append(target_node.index)
+            if target_node.is_leaf():
+                update_mixture_partial_PSE(column, target_node, tipdata, p, 1, nu)
+
+
+    recom_prob = pd.DataFrame( {'recom_nodes': tnodes, 'posterior0': pd.Series(list(posterior0)),'posterior1': pd.Series(list(posterior1))})
+
     end = time.time()
+    # print(recom_prob)
     print("time phylohmm", end - start)
 
-    # start = time.time()
-    # #  write updated tip partail to make recombination result based on that
-    # recom_prob.to_hdf('Recom_prob_two.h5', key='prob' ,mode='w')
-    # end = time.time()
-    # print("time recom_prob.to_hdf",end - start)
-    #
-    #
-    # start= time.time()
-    # # write json file based on tip partial to have new infrence
-    # make_physher_json_partial(tipdata, tree, json_path, 'PB_two.json')
-    # end = time.time()
-    # print("time make_physher_json_partial",end - start)
+
+    start = time.time()
+    my_tipdata = tipdata.transpose(1, 0, 2)
+    taxon = []
+    seq = []
+    def partial_dic(i):
+        taxon = str(give_taxon(tree, i))
+        seq = np.array2string(my_tipdata[i], separator=',').replace("[", "").replace("]", "").replace("\n","").replace(" ","")
+        return taxon,seq
+
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        f1 = [executor.submit(partial_dic, i) for i in range(my_tipdata.shape[0])]
+        for res in concurrent.futures.as_completed(f1):
+            taxon.append(res.result()[0])
+            seq.append(res.result()[1])
+    partial_dict = dict(zip(taxon,seq))
+    make_physher_json_partial_1(partial_dict, tree, json_path, 'PB_two.json')
+    end = time.time()
+    print("time_make_physher_json_partial:", end - start)
+
+
+    start = time.time()
+    #  write updated tip partail to make recombination result based on that
+    recom_prob.to_hdf('Recom_prob_two.h5',key='recom_prob',mode='w')
+    end = time.time()
+    print("time recom_prob.to_hdf",end - start)
+
+
+
+
+
 
 
 
