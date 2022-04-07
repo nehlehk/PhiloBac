@@ -13,9 +13,9 @@ c_file = file(params.test_file)
 
 frequencies = Channel.value(' 0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
-iteration = Channel.value(1..3)
+iteration = Channel.value(1..5)
 nu_sim = Channel.of(0.05) //0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1
-recomlen = Channel.of(1000) //100,200,300,400,500,1000,2000,3000,4000,5000
+recomlen = Channel.of(500) //100,200,300,400,500,1000,2000,3000,4000,5000
 recomrate = Channel.of(0.01) //0.005,0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1
 
 

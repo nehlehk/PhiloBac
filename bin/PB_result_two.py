@@ -31,8 +31,6 @@ def recom_output(pb_tree,recom_prob,tips_num,threshold,status,nodes_number):
                         # print(d)
                         for elm in d:
                             rmsedata[k, int(elm)] = 1
-
-
     return output,rmsedata
 # **********************************************************************************************************************
 def recom_resultFig_dm(pb_tree,recom_prob,tips_num,mixtureProb,status,outputname,nodes_number):
@@ -97,16 +95,16 @@ if __name__ == "__main__":
 
 
 
-    path = '/home/nehleh/PhiloBacteria/Results/num_3'
-    clonal_path = path+'/num_3_Clonaltree.tree'
-    genomefile = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_Wholegenome.fasta'
-    baciSimLog = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_BaciSim_Log.txt'
-    # pb_tree = path+'/num_5_recom_1_physherTree_PB.newick'
-    pb_tree = '/home/nehleh/PhiloBacteria/bin/pb_tree.newick'
-    recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
-    # recomProb = path+'/num_1_recom_1_Recom_prob_two.h5'
-    baciSimStat = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_Recom_stat.csv'
-    json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
+    # path = '/home/nehleh/PhiloBacteria/Results/num_3'
+    # clonal_path = path+'/num_3_Clonaltree.tree'
+    # genomefile = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_Wholegenome.fasta'
+    # baciSimLog = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_BaciSim_Log.txt'
+    # # pb_tree = path+'/num_5_recom_1_physherTree_PB.newick'
+    # pb_tree = '/home/nehleh/PhiloBacteria/bin/pb_tree.newick'
+    # recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
+    # # recomProb = path+'/num_1_recom_1_Recom_prob_two.h5'
+    # baciSimStat = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_Recom_stat.csv'
+    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
@@ -123,9 +121,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
-    # genomefile = args.alignmentFile
-    # pb_tree = args.PBtreefile
-    # recomProb = args.recomProb
+    genomefile = args.alignmentFile
+    pb_tree = args.PBtreefile
+    recomProb = args.recomProb
     baciSimStat = args.recomstat
     simulation = args.simulation
     initialstat = args.status
@@ -161,8 +159,8 @@ if __name__ == "__main__":
 
 
     if simulation == 1 :
-        # clonal_path = args.clonaltreeFile
-        # baciSimLog = args.recomlogFile
+        clonal_path = args.clonaltreeFile
+        baciSimLog = args.recomlogFile
         clonal_tree = Tree.get_from_path(clonal_path, 'newick',rooting='force-rooted' )
         clonal_tree.resolve_polytomies(update_bipartitions=True)
         nodes_number_c = len(clonal_tree.nodes())

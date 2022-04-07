@@ -190,9 +190,9 @@ def update_mixture_partial_PSE(column,node,tipdata,posterior,node_order,nu):
     rho = give_rho(node,posterior,site,node_order)
     for i in range(4):
         if i == my_number:
-            tipdata[site,node.index,i] = 1 - (nu * rho)
+            tipdata[site,node.index,i] = 1 - (nu * rho * node.edge_length)
         else:
-            tipdata[site,node.index,i] = (nu * rho)/3
+            tipdata[site,node.index,i] = (nu * rho * node.edge_length)/3
   return tipdata
 # **********************************************************************************************************************
 def give_best_nu(X,tree_path,clonal,target_node,tipdata,p_trans,p_start):
@@ -319,7 +319,7 @@ def baumwelch_parallel(target_node):
     recombination_trees.append(clonaltree.as_string(schema="newick"))
     X = partial[:, target_node.index, :]
     nu = 0.028
-    # nu = give_best_nu(X, tree_path, recombination_trees[0], target_node, tipdata, p_trans, p_start)
+    nu = give_best_nu(X, tree_path, recombination_trees[0], target_node, tipdata, p_trans, p_start)
     # print("nu:",nu)
     recombination_trees.append(recom_maker(clonaltree, target_node.index, nu))
     emission = compute_logprob_phylo_bw(X, recombination_trees, GTR_sample, tipdata, alignment_len)
@@ -333,12 +333,12 @@ def baumwelch_parallel(target_node):
     else:
         trans = best_trans
     R_over_theta = -(np.log(trans[0][0]) - target_node.edge_length)
+    print("R_over_theta:",R_over_theta)
     if trans[1][1] == 0:
         delta = 0
     else:
         delta = -1/np.log(trans[1][1])
-    # if target_node.is_leaf():
-    #     update_mixture_partial_PSE(column, target_node, tipdata, p, 1, nu)
+    print("delta:", delta)
     return p,target_node,nu
 # **********************************************************************************************************************
 def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
@@ -410,6 +410,19 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
 
     return tipdata,recom_prob
 # **********************************************************************************************************************
+def recom_output(recom_prob,tips_num,threshold,nodes_number):
+    output = np.zeros((alignment_len,nodes_number))
+    for i in range(len(recom_prob)):
+        if (int(recom_prob['recom_nodes'][i]) < tips_num):
+            for j in range(alignment_len):
+                if (float(recom_prob['posterior1'][i][j]) >= threshold):
+                    output[j, recom_prob['recom_nodes'][i]] = 1
+        else:
+            for k in range(alignment_len):
+                if (float(recom_prob['posterior1'][i][k]) >= threshold):
+                    output[k, recom_prob['recom_nodes'][i]] = 1
+    return output
+# **********************************************************************************************************************
 def make_physher_json_partial(tipdata,tree,json_path,outputname):
     my_tipdata = tipdata.transpose(1, 0, 2)
     with open(json_path) as json_file:
@@ -422,6 +435,52 @@ def make_physher_json_partial(tipdata,tree,json_path,outputname):
 
         partial = dict(zip(taxon, seq))
         data['model']['sitepattern']['partials'] = partial
+        data['model']['tree']['newick'] = str(tree)
+
+    jsonFile = open(outputname, "w")
+    json.dump(data, jsonFile, indent=4)
+    jsonFile.close()
+# **********************************************************************************************************************
+def make_physher_json_gap(recom_prob,alignment,tree,tips_num,nodes_number,json_path,threshold,outputname):
+    output = recom_output(recom_prob, tips_num, threshold, nodes_number)
+    with open(json_path) as json_file:
+        data = json.load(json_file)
+        taxon = []
+        seq = []
+        for i in range(tips_num):
+            x = ''
+            taxon.append(str(give_taxon(tree, i)))
+            for j in range(alignment_len):
+                if (output[j,i] >= threshold):
+                    x = x + '-'
+                else:
+                    x = x + str(alignment[i][j])
+            seq.append(x)
+
+        align = dict(zip(taxon, seq))
+        data['model']['sitepattern']['partials'] = align
+        data['model']['tree']['newick'] = str(tree)
+
+    jsonFile = open(outputname, "w")
+    json.dump(data, jsonFile, indent=4)
+    jsonFile.close()
+# **********************************************************************************************************************
+def make_physher_json_delcol(recom_prob,alignment,tree,tips_num,nodes_number,json_path,threshold,outputname):
+    output = recom_output(recom_prob, tips_num, threshold, nodes_number)
+    with open(json_path) as json_file:
+        data = json.load(json_file)
+        taxon = []
+        seq = []
+        for i in range(tips_num):
+            x = ''
+            taxon.append(str(give_taxon(tree, i)))
+            for j in range(alignment_len):
+                if (output[j,i] < threshold):
+                    x = x + str(alignment[i][j])
+            seq.append(x)
+
+        align = dict(zip(taxon, seq))
+        data['model']['sitepattern']['partials'] = align
         data['model']['tree']['newick'] = str(tree)
 
     jsonFile = open(outputname, "w")
@@ -538,9 +597,6 @@ def viterbi(X, trans, emission, initial_distribution):
 
     return S
 # **********************************************************************************************************************
-
-
-
 if __name__ == "__main__":
     # path = os.path.dirname(os.path.abspath(__file__))
 
@@ -551,12 +607,12 @@ if __name__ == "__main__":
     # clonal_path = path+'/clonaltree.tree'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
-    path = '/home/nehleh/PhiloBacteria/Results/num_3'
-    tree_path = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_RAxML_bestTree.tree'
+    path = '/home/nehleh/PhiloBacteria/Results_slides/num_4'
+    tree_path = path+'/num_4_recom_1_RAxML_bestTree.tree'
     # tree_path = path+'/num_1_beasttree.newick'
-    clonal_path = path+'/num_3_Clonaltree.tree'
-    genomefile = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_Wholegenome.fasta'
-    baciSimLog = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_BaciSim_Log.txt'
+    clonal_path = path+'/num_4_Clonaltree.tree'
+    genomefile = path+'/num_4_recom_1_Wholegenome_4_1.fasta'
+    baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
     json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
@@ -566,7 +622,7 @@ if __name__ == "__main__":
     parser.add_argument('-cl', "--clonaltreeFile", type=str, help='clonalclonaltreeFile tree from BaciSim')
     parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
     parser.add_argument('-nu', "--nuHmm", type=float,default=0.033,help='nuHmm')
-    parser.add_argument('-p', "--threshold", type=float, default=0.3, help='threshold')
+    parser.add_argument('-p', "--threshold", type=float, default=0.5, help='threshold')
     parser.add_argument('-f', "--frequencies", type=list, default= [0.2184,0.2606,0.3265,0.1946],help='frequencies')
     parser.add_argument('-r', "--rates", type=list, default= [0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ], help='rates')
     parser.add_argument('-s', "--startProb", type=list, default= [0.99, 0.01],help='frequencies')
@@ -618,6 +674,7 @@ if __name__ == "__main__":
     posterior1 = []
     nodes = []
     tnodes= []
+    best_nu = []
     np.set_printoptions(threshold=np.inf)
     tipdata = set_tips_partial(column, tips_num)
     persite_ll, partial = computelikelihood_mixture(tree, alignment_len, tipdata, GTR_sample, tips_num)
@@ -633,16 +690,27 @@ if __name__ == "__main__":
             posterior0.append(np.array(p[:, 0], dtype='double')) # posterior probality for clonal tree
             posterior1.append(np.array(p[:, 1], dtype='double')) # posterior probality for recombination tree
             tnodes.append(target_node.index)
+            best_nu.append([target_node.index, nu])
             if target_node.is_leaf():
                 update_mixture_partial_PSE(column, target_node, tipdata, p, 1, nu)
 
 
     recom_prob = pd.DataFrame( {'recom_nodes': tnodes, 'posterior0': pd.Series(list(posterior0)),'posterior1': pd.Series(list(posterior1))})
-
+    write_best_nu(best_nu, 'PB_nu_two.txt')
     end = time.time()
     # print(recom_prob)
     print("time phylohmm", end - start)
 
+    start = time.time()
+    make_physher_json_gap(recom_prob,alignment,tree,tips_num,nodes_number,json_path,threshold,'PB_gap.json')
+    end = time.time()
+    print("time_make_physher_json_gap:", end - start)
+
+
+    start = time.time()
+    make_physher_json_delcol(recom_prob,alignment,tree,tips_num,nodes_number,json_path,threshold,'PB_del.json')
+    end = time.time()
+    print("time_make_physher_json_del:", end - start)
 
     start = time.time()
     my_tipdata = tipdata.transpose(1, 0, 2)
