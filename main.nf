@@ -15,7 +15,7 @@ frequencies = Channel.value(' 0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
 iteration = Channel.value(1..5)
 nu_sim = Channel.of(0.05) //0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1
-recomlen = Channel.of(500) //100,200,300,400,500,1000,2000,3000,4000,5000
+recomlen = Channel.of(1000) //100,200,300,400,500,1000,2000,3000,4000,5000
 recomrate = Channel.of(0.01) //0.005,0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1
 
 
@@ -23,7 +23,7 @@ params.xml = "${PWD}/bin/template/GTR_template.xml"
 params.json = "${PWD}/bin/template/GTR_temp_partial.json"
 
 params.genome = 10
-params.genomelen = '100000'
+params.genomelen = '10000'
 params.tMRCA = '0.01'
 params.best = false
 //params.method = 'pb'
@@ -31,7 +31,7 @@ params.hmm_state = '2'
 params.nu_hmm = 0.033
 params.analyse = false
 params.sim_stat = 1 //0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes
-params.threshold = 0.5
+params.threshold = 0.9
 params.seq = "/home/nehleh/PhyloCode/Result/Results_13092021/num_4/num_4_Wholegenome_4.fasta"
 // params.outDir = 'Results'
 // params.help = false
@@ -55,7 +55,6 @@ def helpMessage() {
       --tMRCA                tMRCA >0 (default 0.01)                TMRCA
       --recomrate            value >0 (default 0.05)                Recombination rate
       --nu_sim               value >0 (default 0.05)                nu value using in simulated data
-      --best                 true or false (default false)          show the best answer
       --method               pb,cfml,gub (default pb)               Recombination detection methods(PhiloBacteria,ClonalFrameML,Gubbins)
       --analyse              true or false
   Options for detecting recombination in empirical sequence alignments:
@@ -176,123 +175,16 @@ process PhiloBacteria {
 
      output:
         path 'Recom_prob_two.h5'    , emit: recom_prob_two   , optional: true
-        path 'PB_Partial_two.xml'   , emit: PB_Partial_two   , optional: true
-        path 'PB_Gap_two.xml'       , emit: PB_Gap_two       , optional: true
-        path 'PB_Del_two.xml'       , emit: PB_Del_two       , optional: true
-        path 'RMSE_PB_two.csv'      , emit :PB_RMSE_two      , optional: true
-        path 'PB_Recom_two.jpeg'    , emit: PB_Recom_two     , optional: true
         path 'PB_nu_two.txt'        , emit: PB_nu_two        , optional: true
-        path 'PB_Partial_eight.xml' , emit: PB_Partial_eight , optional: true
-        path 'PB_Gap_eight.xml'     , emit: PB_Gap_eight     , optional: true
-        path 'PB_Del_eight.xml'     , emit: PB_Del_eight     , optional: true
-        path 'RMSE_PB_eight.csv'    , emit: PB_RMSE_eight    , optional: true
-        path 'PB_Recom_eight.jpeg'  , emit: PB_Recom_eight   , optional: true
-        path 'PB_Log_eight.txt'     , emit: PB_Log_eight     , optional: true
-        path 'PB_nu_eight.txt'      , emit: PB_nu_eight      , optional: true
-        path 'PB_Two.catg'          , emit: PB_CATG_two      , optional: true
         path 'PB_two.json'          , emit: PB_JSON_two      , optional: true
-        path 'PB_Two_zero.catg'     , emit: PB_CATG_two_zero , optional: true
-        path 'PB_two_zero.json'     , emit: PB_JSON_two_zero , optional: true
+        path 'PB_gap.json'          , emit: PB_JSON_gap      , optional: true
+        path 'PB_del.json'          , emit: PB_JSON_del      , optional: true
+
 
 
      """
        phyloHmm_two.py -t ${MyRaxML}  -a ${Wholegenome}  -cl ${Clonaltree} -rl ${Recomlog} -nu ${params.nu_hmm} -st ${params.hmm_state} -sim ${params.simulation} -js ${params.json}
 
-     """
-}
-
-process Make_BaciSim_GapDel {
-    publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
-    maxForks 1
-//     errorStrategy 'ignore'
-
-    input:
-        path Clonaltree
-        path Wholegenome
-        tuple val(iteration), path('Recomlog')
-        path MyRaxML
-        val nu_sim
-        val recomlen
-        val recomrate
-
-     output:
-        path 'Del_alignment.fasta'      , emit: Del_alignment       , optional: true
-        path 'Gap_alignment.fasta'      , emit: Gap_alignment       , optional: true
-        //path 'BaciSim_partial.json'     , emit: Partial_json        , optional: true
-        path 'BaciSim_PSE_999.json'     , emit: BaciSim_PSE_999     , optional: true
-
-        //path 'OriginalSeq.xml' , emit: Original_XML , optional: true
-        //path 'BaciSim_Gap.xml' , emit: BaciSim_Gap , optional: true
-        //path 'BaciSim_Del.xml' , emit: BaciSim_Del , optional: true
-        //path 'BaciSim_partial.xml' , emit: Partial_xml , optional: true
-        //path 'BaciSim_partial_certian.xml' , emit: Partial_xml_certian , optional: true
-        //path 'BaciSim_Best_Two.catg' , emit: Certain_CATG , optional: true
-
-     """
-        BaciSim_GapDel.py -t ${Clonaltree} -a${Wholegenome}  -r${MyRaxML} -l${Recomlog} -x ${params.xml} -j ${params.json}
-
-     """
-}
-
-
-process RaxmlNG_CATG {
-    publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
-    maxForks 1
-//    errorStrategy 'ignore'
-
-    input:
-        path PB_CATG_two
-        val iteration
-        val nu_sim
-        val recomlen
-        val recomrate
-    output:
-        path 'PB_Two.catg.raxml.bestTree', emit: PB_TWO_partialtree
-
-    """
-     raxml-ng  --msa ${PB_CATG_two} --msa-format CATG --model GTR+G --prob-msa on
-    """
-}
-
-
-process Physher_partial {
-
-     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
-     maxForks 1
-
-     input:
-        path PB_JSON_two
-        val iteration
-        val output
-        val nu_sim
-        val recomlen
-        val recomrate
-
-     output:
-         path output , emit: physher_txt
-
-     """
-       physher  ${PB_JSON_two}   >  ${output}
-     """
-}
-
-
-process Physher_tree {
-     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
-     maxForks 1
-
-     input:
-        path physher_txt
-        val iteration
-        val output
-        val nu_sim
-        val recomlen
-        val recomrate
-
-     output:
-         path output , emit: physherTree_two
-     """
-       physher_result.py -t ${physher_txt} -o ${output}
      """
 }
 
@@ -329,47 +221,6 @@ process PhiloBac_result {
      """
 }
 
-
-
-
-process Get_raxml_tree_gap {
-    publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
-    maxForks 1
-    errorStrategy 'ignore'
-
-    input:
-        path Gap_alignment
-        val iteration
-        val nu_sim
-        val recomlen
-        val recomrate
-    output:
-        path 'RAxML_bestTree.gaptree', emit: GapRaxML
-
-    """
-     raxmlHPC -m GTRGAMMA   -p 12345 -s ${Gap_alignment} -N 10 -n gaptree
-    """
-}
-
-process Get_raxml_tree_del {
-    publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
-    maxForks 1
-    errorStrategy 'ignore'
-
-    input:
-        path Del_alignment
-        val iteration
-        val nu_sim
-        val recomlen
-        val recomrate
-
-    output:
-        path 'RAxML_bestTree.deltree', emit: DelRaxML
-
-    """
-     raxmlHPC -m GTRGAMMA   -p 12345 -s ${Del_alignment} -N 10 -n deltree
-    """
-}
 
 
 process CFML {
@@ -475,46 +326,6 @@ process Gubbins_result {
 }
 
 
-process Run_Beast {
-    publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
-    maxForks 1
-
-     input:
-         path XML_file
-         val prefix
-         val iteration
-         val nu_sim
-         val recomlen
-         val recomrate
-
-     output:
-         path "${prefix}wholegenome.trees" , emit:  BeastOutput
-
-     """
-         beast -prefix ${prefix}  ${XML_file}
-     """
-}
-
-process Treeannotator {
-     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
-     maxForks 1
-
-     input:
-         path BeastOutput
-         val prefix
-         val iteration
-         val nu_sim
-         val recomlen
-         val recomrate
-
-     output:
-         path "${prefix}BeastTree.nexus" , emit: BeastNexus
-
-     """
-         treeannotator -b 10  ${BeastOutput}  ${prefix}BeastTree.nexus
-     """
-}
-
 
 process NexusToNewick {
      publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
@@ -545,6 +356,8 @@ process mergeTreeFiles {
          path CFMLtree
          path GubbinsRescaletree
          path physherTree_two
+//        path physherTree_two_g
+//         path physherTree_two_d
          val iteration
          val nu_sim
          val recomlen
@@ -554,13 +367,9 @@ process mergeTreeFiles {
          path 'AllOtherTrees.newick' , emit: allOtherTrees
 
      """
-       mergeFiles.py ${CFMLtree} ${GubbinsRescaletree} ${physherTree_two}   > AllOtherTrees.newick
+       mergeFiles.py ${CFMLtree} ${GubbinsRescaletree} ${physherTree_two} > AllOtherTrees.newick
      """
 }
-
-
-
-
 
 process TreeCmp {
      publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
@@ -687,34 +496,6 @@ workflow Sim {
 }
 
 
-workflow Best {
-        take:
-            genome
-            clonaltree
-            raxml_tree
-            recom_log
-            iteration
-            nu_sim
-            recomlen
-            recomrate
-        main:
-            Make_BaciSim_GapDel(clonaltree,genome,recom_log,raxml_tree,nu_sim,recomlen,recomrate)
-            Get_raxml_tree_gap(Make_BaciSim_GapDel.out.Gap_alignment,iteration,nu_sim,recomlen,recomrate)
-            Get_raxml_tree_del(Make_BaciSim_GapDel.out.Del_alignment,iteration,nu_sim,recomlen,recomrate)
-        emit:
-            GapRaxML = Get_raxml_tree_gap.out.GapRaxML
-            DelRaxML = Get_raxml_tree_del.out.DelRaxML
-//            Partial_json = Make_BaciSim_GapDel.out.Partial_json
-            BaciSim_PSE_999 = Make_BaciSim_GapDel.out.BaciSim_PSE_999
-//            original = Make_BaciSim_GapDel.out.Original_XML
-//            original_Gap_xml = Make_BaciSim_GapDel.out.BaciSim_Gap
-//            original_Del_xml = Make_BaciSim_GapDel.out.BaciSim_Del
-//            original_partial_xml = Make_BaciSim_GapDel.out.Partial_xml
-//            original_certian_xml = Make_BaciSim_GapDel.out.Partial_xml_certian
-//            certian_catg = Make_BaciSim_GapDel.out.Certain_CATG
-}
-
-
 workflow Gubbins {
         take:
             genome
@@ -734,39 +515,6 @@ workflow Gubbins {
             Delta_Gubbins = Gubbins_result.out.Gubb_delta
 
 }
-
-workflow Beast {
-        take:
-            xml_file
-            prefix
-            iteration
-            nu_sim
-            recomlen
-            recomrate
-        main:
-            Run_Beast(xml_file,prefix,iteration,nu_sim,recomlen,recomrate)
-            Treeannotator(Run_Beast.out.BeastOutput,prefix,iteration,nu_sim,recomlen,recomrate)
-            NexusToNewick(Treeannotator.out.BeastNexus,prefix,iteration,nu_sim,recomlen,recomrate)
-        emit:
-            BeastNexus = NexusToNewick.out.BeastNewick
-}
-
-workflow Beast_cerain {
-        take:
-            xml_file
-            prefix
-            iteration
-            nu_sim
-            recomlen
-            recomrate
-        main:
-            Run_Beast(xml_file,prefix,iteration,nu_sim,recomlen,recomrate)
-            Treeannotator(Run_Beast.out.BeastOutput,prefix,iteration,nu_sim,recomlen,recomrate)
-            NexusToNewick(Treeannotator.out.BeastNexus,prefix,iteration,nu_sim,recomlen,recomrate)
-        emit:
-            BeastNexus = NexusToNewick.out.BeastNewick
-}
-
 
 
 workflow ClonalFrameML {
@@ -809,7 +557,8 @@ workflow Physher {
 
 
 
-include {   Physher_partial as physher_PSE_9        ; Physher_tree as p_tree_PSE_9 ;
+include {   Physher_partial as physher_PBGap        ; Physher_tree as p_tree_PBGap ;
+            Physher_partial as physher_PBDel        ; Physher_tree as p_tree_PBDel ;
             Physher_partial as physher_PB           ; Physher_tree as p_tree_PB }  from './Physher.nf'
 
 
@@ -825,15 +574,11 @@ workflow {
         Sim(iteration,frequencies,rates,nu_sim,recomlen,recomrate)
         Get_raxml_tree(Sim.out.genome,Sim.out.iteration,Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
 
-        if (params.best == true) {
-            Best(Sim.out.genome,Sim.out.clonaltree,Get_raxml_tree.out.MyRaxML,Sim.out.recom_log,Sim.out.iteration,Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
-        }
         if (params.method =~ /cfml/) {
             ClonalFrameML(Sim.out.clonaltree,Sim.out.recom_log,Sim.out.genome,Get_raxml_tree.out.MyRaxML,Sim.out.iteration,Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
             CollectedRMSE_CFML = ClonalFrameML.out.RMSE_CFML.collectFile(name:"rmse_CFML.csv",storeDir:"${PWD}/Summary_Results", keepHeader:false , sort: false)
             CollectedRcount_CFML = ClonalFrameML.out.Rcount_CFML.collectFile(name:"rcount_CFML.csv",storeDir:"${PWD}/Summary_Results", keepHeader:false , sort: false)
             CollectedDelta_CFML = ClonalFrameML.out.Delta_CFML.collectFile(name:"delta_CFML.csv",storeDir:"${PWD}/Summary_Results", keepHeader:true , sort: false)
-
         }
         if (params.method =~ /gub/) {
             Gubbins(Sim.out.genome,Sim.out.clonaltree,Sim.out.recom_log,Sim.out.iteration,Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
@@ -843,8 +588,16 @@ workflow {
         }
         if (params.method =~ /pb/) {
             PhiloBacteria(Sim.out.clonaltree,Sim.out.recom_log,Sim.out.genome,Get_raxml_tree.out.MyRaxML,Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
+
             physher_PB(PhiloBacteria.out.PB_JSON_two,Sim.out.iteration,'physher_PB.txt',Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
             p_tree_PB(physher_PB.out.physher_txt,Sim.out.iteration,'physherTree_PB.newick',Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
+
+            //physher_PBGap(PhiloBacteria.out.PB_JSON_gap,Sim.out.iteration,'physher_PBGap.txt',Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
+            //p_tree_PBGap(physher_PBGap.out.physher_txt,Sim.out.iteration,'physherTree_PBGap.newick',Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
+
+            //physher_PBDel(PhiloBacteria.out.PB_JSON_del,Sim.out.iteration,'physher_PBDel.txt',Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
+            //p_tree_PBDel(physher_PBDel.out.physher_txt,Sim.out.iteration,'physherTree_PBDel.newick',Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
+
             PhiloBac_result(Sim.out.clonaltree,Sim.out.recom_log,Sim.out.genome,PhiloBacteria.out.recom_prob_two,p_tree_PB.out.physherTree_two,Sim.out.recom_stat,Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
             CollectedRMSE_PB_two = PhiloBac_result.out.PB_RMSE_two.collectFile(name:"rmse_PB_two.csv",storeDir:"${PWD}/Summary_Results", keepHeader:false , sort: false)
             CollectedRcount_Baci = PhiloBac_result.out.Baci_rcount.collectFile(name:"rcount_baci.csv",storeDir:"${PWD}/Summary_Results", keepHeader:false , sort: false)
@@ -858,6 +611,7 @@ workflow {
             RecomCount(CollectedRcount_Baci,CollectedRcount_PB_two,CollectedRcount_Gubb,CollectedRcount_CFML)
             Delta_Summary(CollectedDelta_Baci,CollectedDelta_PB_two,CollectedDelta_Gubb,CollectedDelta_CFML)
             mergeTreeFiles(ClonalFrameML.out.CFMLtree,Gubbins.out.GubbinsRescaletree,p_tree_PB.out.physherTree_two,Sim.out.iteration,Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
+            //p_tree_PBGap.out.physherTree_two,p_tree_PBDel.out.physherTree_two,
             TreeCmp(Sim.out.clonaltree,mergeTreeFiles.out.allOtherTrees,Sim.out.iteration,Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
             collectedCMP_tree = TreeCmp.out.Comparison.collectFile(name:"all_cmpTrees.result",storeDir:"${PWD}/Summary_Results", keepHeader:true , sort: false)
             TreeCmp_summary(collectedCMP_tree)

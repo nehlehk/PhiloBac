@@ -166,6 +166,7 @@ def computelikelihood_mixture_bw(tree,alignment_len,tip_partial,model,tips_num):
     return persite_ll, partial
 # **********************************************************************************************************************
 def tree_evolver_rerooted(tree ,node ,nu):
+    # co_recom = nu/2
     co_recom = nu
     if (node.edge_length is None):
        node.edge.length = 0
@@ -206,40 +207,36 @@ def give_best_nu(X,tree_path,clonal,target_node,tipdata,p_trans,p_start):
         # print(nu,s)
         return -s
 
-    result = spo.minimize_scalar(fn, method="bounded", bounds=(0.0, 0.3) , options={'disp': 1})
+    result = spo.minimize_scalar(fn, method="bounded", bounds=(0.0, 0.1) , options={'disp': 1})
     # print(result.x)
     return result.x
 # *********************************************************************************************************************
-def my_best_nu(X,tree_path,clonal,target_node,tipdata,p_trans,p_start):
-    def fn(nu):
+def my_best_nu(X,tree_path,clonal,target_node,tipdata):
+    for nu in np.arange(0.0, 0.1, 0.01):
+    # nu = 0.024070380162608283
+        print(nu)
         temptree = Tree.get_from_path(tree_path, 'newick', rooting='force-rooted')
         set_index(temptree, alignment)
         r_trees = recom_maker(temptree, target_node.index, nu)
-        emission = compute_logprob_phylo_bw(X, [clonal, r_trees], GTR_sample, tipdata, alignment_len)
-        alpha , c = forward(X, p_trans, emission, p_start)
-        s = np.sum(np.log(c))
-        # print(nu,s)
-        return s
-
-    result = spo.minimize_scalar(fn, method="bounded", bounds=(0.0, 0.5) , options={'disp': 1})
-    # print(result)
-    return result.x
+        print([clonal, r_trees])
+        temp = compute_logprob_phylo(X, [clonal, r_trees], GTR_sample, tipdata, alignment_len)
+        s = np.sum(temp, axis=0)[0]
+        print(nu,s)
 
 
-    # score = []
-    # my_nu = np.arange(0.0, 0.1, 0.01)
-    # for nu in my_nu:
-    #     temptree = Tree.get_from_path(tree_path, 'newick')
+
+    # def fn(nu):
+    #     temptree = Tree.get_from_path(tree_path, 'newick', rooting='force-rooted')
     #     set_index(temptree, alignment)
     #     r_trees = recom_maker(temptree, target_node.index, nu)
-    #     emission = compute_logprob_phylo_bw(X, [clonal, r_trees], GTR_sample, tipdata, alignment_len)
-    #     alpha , c = forward(X, p_trans, emission, p_start)
-    #     s = np.sum(np.log(c))
+    #     temp = compute_logprob_phylo(X, [clonal, r_trees], GTR_sample, tipdata, alignment_len)
+    #     s = np.sum(temp, axis=0)[0]
     #     print(nu,s)
-    #     score.append(s)
-    # best_nu = my_nu[score.index(min(score))]
-    # # print(best_nu)
-    # return best_nu
+    #     return -s
+    #
+    # result = spo.minimize_scalar(fn, method="bounded", bounds=(0.0, 0.05) , options={'disp': 1})
+    # # print(result)
+    # return result.x
 # *********************************************************************************************************************
 def write_best_nu(best_nu,outputname):
     with open(outputname, mode='w') as bestnu_file:
@@ -321,12 +318,12 @@ def baumwelch_parallel(target_node):
     my_nu = np.arange(0.0001, 0.1, 0.01)
     recombination_trees.append(clonaltree.as_string(schema="newick"))
     X = partial[:, target_node.index, :]
-    # nu = give_best_nu(X, tree_path, recombination_trees[0], target_node, tipdata, p_trans, p_start)
-    nu = my_best_nu(X,tree_path,recombination_trees[0],target_node,tipdata,p_trans,p_start)
-    print("nu:",nu)
+    nu = 0.028
+    nu = give_best_nu(X, tree_path, recombination_trees[0], target_node, tipdata, p_trans, p_start)
+    # print("nu:",nu)
     recombination_trees.append(recom_maker(clonaltree, target_node.index, nu))
     emission = compute_logprob_phylo_bw(X, recombination_trees, GTR_sample, tipdata, alignment_len)
-    best_trans , p = baum_welch(X,p_trans,emission,p_start,n_iter=1)
+    best_trans , p = baum_welch(X, p_trans, emission, p_start, n_iter=1)
     p = p.T
     # print("best_trans:",best_trans)
     # hidden = viterbi(X,best_trans,emission,p_start)
@@ -336,12 +333,12 @@ def baumwelch_parallel(target_node):
     else:
         trans = best_trans
     R_over_theta = -(np.log(trans[0][0]) - target_node.edge_length)
-    # print("R_over_theta:",R_over_theta)
+    print("R_over_theta:",R_over_theta)
     if trans[1][1] == 0:
         delta = 0
     else:
         delta = -1/np.log(trans[1][1])
-    # print("delta:", delta)
+    print("delta:", delta)
     return p,target_node,nu
 # **********************************************************************************************************************
 def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
@@ -402,7 +399,7 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
             t_node.append(target_node.index)
             # Update tip partial based posterior probality
             if target_node.is_leaf():
-                update_mixture_partial_PSE(column, target_node,tipdata,p[:, 1],nu)
+                update_mixture_partial_PSE(column, target_node, tipdata, p, nu)
 
 
     np.set_printoptions(threshold=np.inf)
@@ -549,6 +546,14 @@ def baum_welch(X, trans, emission, initial_distribution, n_iter=1):
         # Add additional T'th element in gamma
         gamma = np.hstack((gamma , (alpha[T-1, :] * beta[T-1, :] / np.dot(alpha[T-1, :] , beta[T-1, :])).reshape((-1, 1)) ))
 
+
+        # denominator = np.sum(gamma, axis=1)
+        # print(denominator)
+        # print((np.sum(gamma, axis=0)))
+        # for t in range(T):
+        #     emission[t, :] = np.sum(gamma)
+
+        # emission = np.divide(emission, denominator)
     return trans,gamma
 # **********************************************************************************************************************
 def viterbi(X, trans, emission, initial_distribution):
@@ -588,6 +593,7 @@ def viterbi(X, trans, emission, initial_distribution):
     # Flip the path array since we were backtracking
     S = np.flip(S, axis=0)
 
+
     return S
 # **********************************************************************************************************************
 if __name__ == "__main__":
@@ -600,12 +606,12 @@ if __name__ == "__main__":
     # clonal_path = path+'/clonaltree.tree'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
-    # path = '/home/nehleh/PhiloBacteria/hpc/nu_06/Results/num_1'
-    # tree_path = path+'/num_1_nu_0.06_Rlen_500_Rrate_0.01_RAxML_bestTree.tree'
+    # path = '/home/nehleh/PhiloBacteria/Results_slides/num_4'
+    # tree_path = path+'/num_4_recom_1_RAxML_bestTree.tree'
     # # tree_path = path+'/num_1_beasttree.newick'
-    # clonal_path = path+'/num_1_Clonaltree.tree'
-    # genomefile = path+'/num_1_nu_0.06_Rlen_500_Rrate_0.01_Wholegenome.fasta'
-    # baciSimLog = path+'/num_1_nu_0.06_Rlen_500_Rrate_0.01_BaciSim_Log.txt'
+    # clonal_path = path+'/num_4_Clonaltree.tree'
+    # genomefile = path+'/num_4_recom_1_Wholegenome_4_1.fasta'
+    # baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
@@ -640,6 +646,8 @@ if __name__ == "__main__":
 
     # ============================================ setting parameters ==================================================
     tree = Tree.get_from_path(tree_path,schema='newick',rooting='force-rooted')
+    print(tree.max_distance_from_root())
+    # tree.reroot_at_midpoint(update_bipartitions=True)
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile),schema="fasta")
     set_index(tree, alignment)
     print(tree.as_ascii_plot(show_internal_node_labels=True))
@@ -658,10 +666,12 @@ if __name__ == "__main__":
 
     #  doing hmm
     start = time.time()
+    # tipdata,recom_prob= phylohmm(tree,alignment_len,column,nu, p_start, p_trans,tips_num)
     # tipdata, recom_prob = phylohmm_baumwelch(tree, alignment_len, column, nu, p_start, p_trans, tips_num)
 
 
-    posterior_rec = []
+    posterior0 = []
+    posterior1 = []
     nodes = []
     tnodes= []
     best_nu = []
@@ -669,27 +679,39 @@ if __name__ == "__main__":
     tipdata = set_tips_partial(column, tips_num)
     persite_ll, partial = computelikelihood_mixture(tree, alignment_len, tipdata, GTR_sample, tips_num)
     for node in tree.postorder_node_iter():
-        if node != tree.seed_node:
+        # if node != tree.seed_node:
             nodes.append(node)
     with concurrent.futures.ProcessPoolExecutor() as executor:
         results = [executor.submit(baumwelch_parallel, target_node) for target_node in nodes]
+        # results = [executor.submit(baumwelch_parallel, mylist[10])]
         for res in concurrent.futures.as_completed(results):
             p = res.result()[0]
             target_node = res.result()[1]
             nu = res.result()[2]
-            posterior_rec.append(np.array(p[:, 1], dtype='double')) # posterior probality for recombination tree
+            posterior0.append(np.array(p[:, 0], dtype='double')) # posterior probality for clonal tree
+            posterior1.append(np.array(p[:, 1], dtype='double')) # posterior probality for recombination tree
             tnodes.append(target_node.index)
             best_nu.append([target_node.index, nu])
             if target_node.is_leaf():
                 update_mixture_partial_PSE(column,target_node,tipdata,p[:, 1],nu)
 
 
-    recom_prob = pd.DataFrame( {'recom_nodes': tnodes,'posterior_rec': pd.Series(list(posterior_rec))})
+    recom_prob = pd.DataFrame( {'recom_nodes': tnodes, 'posterior0': pd.Series(list(posterior0)),'posterior1': pd.Series(list(posterior1))})
     write_best_nu(best_nu, 'PB_nu_two.txt')
     end = time.time()
     # print(recom_prob)
     print("time phylohmm", end - start)
 
+    start = time.time()
+    make_physher_json_gap(recom_prob,alignment,tree,tips_num,nodes_number,json_path,threshold,'PB_gap.json')
+    end = time.time()
+    print("time_make_physher_json_gap:", end - start)
+
+
+    start = time.time()
+    make_physher_json_delcol(recom_prob,alignment,tree,tips_num,nodes_number,json_path,threshold,'PB_del.json')
+    end = time.time()
+    print("time_make_physher_json_del:", end - start)
 
     start = time.time()
     my_tipdata = tipdata.transpose(1, 0, 2)
@@ -716,11 +738,3 @@ if __name__ == "__main__":
     recom_prob.to_hdf('Recom_prob_two.h5',key='recom_prob',mode='w')
     end = time.time()
     print("time recom_prob.to_hdf",end - start)
-
-
-
-
-
-
-
-

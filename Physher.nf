@@ -44,6 +44,3 @@ process Physher_tree {
        physher_result.py -t ${physher_txt} -o ${output}
      """
 }
-
-
-

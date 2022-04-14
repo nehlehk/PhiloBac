@@ -19,12 +19,12 @@ def recom_output(pb_tree,recom_prob,tips_num,threshold,status,nodes_number):
         for i in range(len(recom_prob)):
             if (int(recom_prob['recom_nodes'][i]) < tips_num):
                 for j in range(alignment_len):
-                    if (float(recom_prob['posterior1'][i][j]) >= threshold):
+                    if (float(recom_prob['posterior_rec'][i][j]) >= threshold):
                         output[j, recom_prob['recom_nodes'][i]] = 1
                         rmsedata[j, recom_prob['recom_nodes'][i]] = 1
             else:
                 for k in range(alignment_len):
-                    if (float(recom_prob['posterior1'][i][k]) >= threshold):
+                    if (float(recom_prob['posterior_rec'][i][k]) >= threshold):
                         output[k, recom_prob['recom_nodes'][i]] = 1
                         desc = set()
                         d = give_descendents(pb_tree, int(recom_prob['recom_nodes'][i]), desc,tips_num)
@@ -95,15 +95,15 @@ if __name__ == "__main__":
 
 
 
-    # path = '/home/nehleh/PhiloBacteria/Results/num_3'
-    # clonal_path = path+'/num_3_Clonaltree.tree'
-    # genomefile = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_Wholegenome.fasta'
-    # baciSimLog = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_BaciSim_Log.txt'
+    # path = '/home/nehleh/PhiloBacteria/Results/num_4'
+    # clonal_path = path+'/num_4_Clonaltree.tree'
+    # genomefile = path+'/num_4_nu_0.015_Rlen_500_Rrate_0.01_Wholegenome.fasta'
+    # baciSimLog = path+'/num_4_nu_0.015_Rlen_500_Rrate_0.01_BaciSim_Log.txt'
     # # pb_tree = path+'/num_5_recom_1_physherTree_PB.newick'
     # pb_tree = '/home/nehleh/PhiloBacteria/bin/pb_tree.newick'
     # recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
     # # recomProb = path+'/num_1_recom_1_Recom_prob_two.h5'
-    # baciSimStat = path+'/num_3_nu_0.05_Rlen_1000_Rrate_0.01_Recom_stat.csv'
+    # baciSimStat = path+'/num_4_nu_0.015_Rlen_500_Rrate_0.01_Recom_stat.csv'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     parser.add_argument('-rs', "--recomstat", type=str, help='recomstat')
     parser.add_argument('-sim', "--simulation", type=int, default=1, help='1 for the simulation data and 0 for emprical sequence')
     parser.add_argument('-st', "--status", type=str, default='2',help='2 for the two states hmm and 8 for eight states of hmm , 2,8 for both ')
-    parser.add_argument('-p', "--threshold", type=float, default=0.5, help='threshold')
+    parser.add_argument('-p', "--threshold", type=float, default=0.8, help='threshold')
 
     args = parser.parse_args()
 
@@ -132,7 +132,6 @@ if __name__ == "__main__":
 
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
     PB_tree = Tree.get_from_path(pb_tree, 'newick' ,  rooting='force-rooted')
-    # PB_tree.reroot_at_midpoint(update_bipartitions=True)
     set_index(PB_tree,alignment)
     print(PB_tree.as_ascii_plot(show_internal_node_labels=True))
     nodes_num_pb = len(PB_tree.nodes())
@@ -174,7 +173,6 @@ if __name__ == "__main__":
         num_recom_real = len(recom_stat)
         write_value(len(recom_stat), 'baci_rcount.csv')
         recom_stat[['len']].to_csv('baci_delta.csv' , index=False)
-
 
 
         if initialstat.find('2') != -1:
