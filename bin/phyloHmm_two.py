@@ -157,7 +157,7 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
 
     # each node play the role of target nodes
     for id_tree, target_node in enumerate(tree.postorder_node_iter()):
-        # if target_node != tree.seed_node:
+        if target_node != tree.seed_node:
         #     print(target_node)
             recombination_trees = []
             mytree.append(Tree.get_from_path(tree_path, 'newick', rooting='force-rooted'))
@@ -337,28 +337,38 @@ def viterbi(X, trans, emission, initial_distribution):
 
     return S
 # **********************************************************************************************************************
-def computelikelihood(brs):
-    partial = np.zeros(((alignment_len,(2 * tips_num) -1, 4)))
-    partial[:,0:tips_num,:] = tipdata
+def computelikelihood(brs, nu, posterior):
+    # brs: [B] B: number of branches
+    # nu: [B] B: number of branches
+    # posterior: [B,N] N: number of sites
+    # P [B,4,4]
+
+    partial = np.empty((4,(2 * tips_num) -1, alignment_len))
+    partial[:,0:tips_num,:] = tipdata.T
     persite_ll = np.zeros(alignment_len)
+    P = GTR_sample.p_t(brs)
+    P_nu = GTR_sample.p_t(brs + nu)
     for node in tree.postorder_node_iter():
-        for site in range(0,alignment_len):
-            nu = [x[1] for x in best_nu if x[0]==node.index]
-            if not node.is_leaf():
-                children = node.child_nodes()
-                if children[0].is_leaf():
-                    partial[site,node.index] = np.dot(GTR_sample.p_matrix(brs), partial[site,children[0].index,:])
+            # nu = [x[1] for x in best_nu if x[0]==node.index]
+        if not node.is_leaf():
+            children = node.child_nodes()
+            if children[0].is_leaf():
+                partial[:, node.index, :] = np.dot(P[children[0].index], partial[:,children[0].index, :])
+            else:
+                post = np.expand_dims(np.expand_dims(posterior[children[0].index], -1), -1)
+                P_mixture = ((1 - post) * P[children[0].index] + post * P_nu[children[0].index])
+                partial[:, node.index, :] = np.squeeze(P_mixture @ np.expand_dims(partial[:, children[0].index, :].T, -1), -1).T
+            for i in range(1, len(children)):
+                if children[i].is_leaf():
+                    partial[:, node.index, :] = np.dot(P[children[i].index], partial[:,children[i].index, :])
                 else:
-                    partial[site,node.index] =(1 - posterior[node.index][site]) * np.dot(GTR_sample.p_matrix(brs),partial[site,children[0].index,:]) + (posterior[node.index][site]) * np.dot(GTR_sample.p_matrix(brs),partial[site,children[0].index,:])
-                for i in range(1, len(children)):
-                    if children[i].is_leaf():
-                        partial[site,node.index] *= np.dot(GTR_sample.p_matrix(brs),partial[site,children[i].index,:])
-                    else:
-                        partial[site,node.index] = (1 - posterior[node.index][site]) * np.dot(GTR_sample.p_matrix(brs), partial[site,children[i].index,:]) + (posterior[node.index][site]) * np.dot(GTR_sample.p_matrix(brs),partial[site,children[i].index,:])
+                    post = np.expand_dims(np.expand_dims(posterior[children[i].index], -1), -1)
+                    P_mixture = ((1 - post) * P[children[i].index] + post * P_nu[children[i].index])
+                    partial[:, node.index, :] = np.squeeze(P_mixture @ np.expand_dims(partial[:, children[i].index, :].T, -1), -1).T
 
-
-    persite_ll = np.log(np.dot(GTR_sample.get_pi(),partial[:, tree.seed_node.index,:].T))
-    return -persite_ll
+    persite_ll = np.log(GTR_sample.get_pi() @ partial[:, tree.seed_node.index, :])
+    print(persite_ll.sum())
+    return persite_ll.sum()
 # **********************************************************************************************************************
 if __name__ == "__main__":
 
@@ -369,13 +379,13 @@ if __name__ == "__main__":
     # clonal_path = path+'/clonaltree.tree'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
-    path = '/home/nehleh/PhiloBacteria/Results/num_1'
+    path = '/Users/mathieu/Downloads'
     tree_path = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_RAxML_bestTree.tree'
     # tree_path = path+'/num_1_beasttree.newick'
     clonal_path = path+'/num_1_Clonaltree.tree'
     genomefile = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_Wholegenome.fasta'
-    baciSimLog = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_BaciSim_Log.txt'
-    json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
+    # baciSimLog = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_BaciSim_Log.txt'
+    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
@@ -428,9 +438,10 @@ if __name__ == "__main__":
     start = time.time()
     tipdata, recom_prob, posterior, best_nu = phylohmm_baumwelch(tree, alignment_len, column, nu, p_start, p_trans, tips_num)
 
-    # brs = []
-    # for id,edge in enumerate(tree.postorder_node_iter()):
-    #     brs.append(0.1)
+    brs = [None]*18
+    for _, node in enumerate(tree.postorder_node_iter()):
+        brs[node.index] = node.edge_length
+    brs.pop()
 
     # def max_LL():
     #     initial_guess = [0.01]
@@ -441,8 +452,26 @@ if __name__ == "__main__":
     #
     #
     # max_LL()
+        
+    initial_guess = np.asarray(brs)
+    # posterior = np.zeros((17, 5000))
+    # best_nu = np.zeros(17)
+    posterior = np.asarray(posterior)
+    best_nu = np.asarray(best_nu)[:,1]
+    # tipdata = set_tips_partial(column, tips_num)
+    print(brs)
+    print(initial_guess.shape)
+    bounds = Bounds([0.]*len(brs), [10.]*len(brs))
+    print(best_nu.shape, posterior.shape)
+    fn = lambda x: -computelikelihood(np.exp(x), best_nu, posterior)
+    print('LnL', -fn(initial_guess))
+    # exit(2)
+    result = spo.minimize(fn, np.log(initial_guess), method='powell', options={'ftol': 0.0000001, 'maxiter': 10})
+    print(result)
+    # print("edge_length = {} " "likelihood = {}".format(result.x[0], -result.fun))
 
-    computelikelihood(0.1)
+
+    # computelikelihood(0.1)
 
 
     # posterior_rec = []
