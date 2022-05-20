@@ -55,6 +55,10 @@ def recom_resultFig_dm(pb_tree,recom_prob,tips_num,mixtureProb,status,outputname
 
     ax.axis('on')
     ax.set_yticklabels([])
+    plt.text(0.045,2.7, r'test test test test test test test test test', fontsize=14,
+             horizontalalignment='left', verticalalignment='top',
+             bbox=dict(boxstyle="sawtooth", ec=(1., 0.5, 0.5), fc=(1., 0.8, 0.8),)
+             )
     plt.savefig(outputname)
     # plt.show()
     return output,rmsedata
@@ -95,16 +99,16 @@ if __name__ == "__main__":
 
 
 
-    # path = '/home/nehleh/PhiloBacteria/Results/num_4'
-    # clonal_path = path+'/num_4_Clonaltree.tree'
-    # genomefile = path+'/num_4_nu_0.015_Rlen_500_Rrate_0.01_Wholegenome.fasta'
-    # baciSimLog = path+'/num_4_nu_0.015_Rlen_500_Rrate_0.01_BaciSim_Log.txt'
-    # # pb_tree = path+'/num_5_recom_1_physherTree_PB.newick'
-    # pb_tree = '/home/nehleh/PhiloBacteria/bin/pb_tree.newick'
-    # recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
-    # # recomProb = path+'/num_1_recom_1_Recom_prob_two.h5'
-    # baciSimStat = path+'/num_4_nu_0.015_Rlen_500_Rrate_0.01_Recom_stat.csv'
-    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
+    path = '/home/nehleh/PhiloBacteria/Results/num_1'
+    clonal_path = path+'/num_1_Clonaltree.tree'
+    genomefile = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_Wholegenome.fasta'
+    baciSimLog = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_BaciSim_Log.txt'
+    # pb_tree = path+'/num_1_nu_0.05_Rlen_1000_Rrate_0.01_physherTree_PB.newick'
+    pb_tree = '/home/nehleh/PhiloBacteria/bin/pb_tree.newick'
+    recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
+    # recomProb = path+'/num_1_nu_0.05_Rlen_1000_Rrate_0.01_Recom_prob_two.h5'
+    baciSimStat = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_Recom_stat.csv'
+    json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
@@ -148,6 +152,8 @@ if __name__ == "__main__":
         recom_count_pb2= len(phyloHMM_log)
         write_value(len(phyloHMM_log),'PB_rcount_two.csv')
         phyloHMM_log[['len']].to_csv('PB_delta_two.csv', index=False)
+        mean_dalta = phyloHMM_log[['len']].mean()
+
 
 
     if initialstat.find('8') != -1:
@@ -173,6 +179,7 @@ if __name__ == "__main__":
         num_recom_real = len(recom_stat)
         write_value(len(recom_stat), 'baci_rcount.csv')
         recom_stat[['len']].to_csv('baci_delta.csv' , index=False)
+
 
 
         if initialstat.find('2') != -1:
