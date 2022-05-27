@@ -150,7 +150,7 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
     posterior0 = []
     posterior1 = []
     t_node = []
-    best_nu = []
+    best_nu = []*18
 
     # make per_site likelihood and per_site partials for all nodes including tips and internal nodes
     persite_ll, partial = computelikelihood_mixture(tree, alignment_len, tipdata, GTR_sample, tips_num)
@@ -171,7 +171,7 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
             recombination_trees.append(mytree[id_tree].as_string(schema="newick"))
             # find the best nu for target branch based on the maximizing score value of hmm
             nu = my_best_nu(X,tree_path,recombination_trees[0],target_node,tipdata,p_trans,p_start)
-            best_nu.append([target_node.index, nu])
+            best_nu[target_node.index] = (target_node.index, nu)
             # print("nu_first:",nu)
 
             # make recombination tree for target node using best nu
@@ -343,13 +343,11 @@ def computelikelihood(brs, nu, posterior):
     # posterior: [B,N] N: number of sites
     # P [B,4,4]
 
-    partial = np.empty((4,(2 * tips_num) -1, alignment_len))
+    partial = np.empty((4,nodes_number, alignment_len))
     partial[:,0:tips_num,:] = tipdata.T
-    persite_ll = np.zeros(alignment_len)
     P = GTR_sample.p_t(brs)
     P_nu = GTR_sample.p_t(brs + nu)
     for node in tree.postorder_node_iter():
-            # nu = [x[1] for x in best_nu if x[0]==node.index]
         if not node.is_leaf():
             children = node.child_nodes()
             if children[0].is_leaf():
@@ -360,14 +358,13 @@ def computelikelihood(brs, nu, posterior):
                 partial[:, node.index, :] = np.squeeze(P_mixture @ np.expand_dims(partial[:, children[0].index, :].T, -1), -1).T
             for i in range(1, len(children)):
                 if children[i].is_leaf():
-                    partial[:, node.index, :] = np.dot(P[children[i].index], partial[:,children[i].index, :])
+                    partial[:, node.index, :] *= np.dot(P[children[i].index], partial[:,children[i].index, :])
                 else:
                     post = np.expand_dims(np.expand_dims(posterior[children[i].index], -1), -1)
                     P_mixture = ((1 - post) * P[children[i].index] + post * P_nu[children[i].index])
-                    partial[:, node.index, :] = np.squeeze(P_mixture @ np.expand_dims(partial[:, children[i].index, :].T, -1), -1).T
+                    partial[:, node.index, :] *= np.squeeze(P_mixture @ np.expand_dims(partial[:, children[i].index, :].T, -1), -1).T
 
     persite_ll = np.log(GTR_sample.get_pi() @ partial[:, tree.seed_node.index, :])
-    print(persite_ll.sum())
     return persite_ll.sum()
 # **********************************************************************************************************************
 if __name__ == "__main__":
@@ -458,17 +455,33 @@ if __name__ == "__main__":
     # best_nu = np.zeros(17)
     posterior = np.asarray(posterior)
     best_nu = np.asarray(best_nu)[:,1]
+    for node in tree.postorder_node_iter():
+        if node.index < len(best_nu):
+            print(f"{node.index} {best_nu[node.index]}")
     # tipdata = set_tips_partial(column, tips_num)
     print(brs)
+    print(best_nu)
     print(initial_guess.shape)
-    bounds = Bounds([0.]*len(brs), [10.]*len(brs))
+    bounds = [[1.e-20, 0.1]]*len(brs)
     print(best_nu.shape, posterior.shape)
     fn = lambda x: -computelikelihood(np.exp(x), best_nu, posterior)
-    print('LnL', -fn(initial_guess))
+    print('LnL', -fn(np.log(initial_guess)))
+    # print('LnL', -fn(np.log(initial_guess+10.)))
+    # print(GTR_sample.p_t(np.array([1.0])))
+    # print(GTR_sample.p_t(np.array([.1])))
+    # print(GTR_sample.p_t(np.array([.000000001])))
+    # print(GTR_sample.p_t(np.array([1., 0.1, .000000001])))
     # exit(2)
-    result = spo.minimize(fn, np.log(initial_guess), method='powell', options={'ftol': 0.0000001, 'maxiter': 10})
-    print(result)
-    # print("edge_length = {} " "likelihood = {}".format(result.x[0], -result.fun))
+    # result = spo.minimize(fn, np.log(initial_guess), method='CG', options={'ftol': 0.0000001, 'maxiter': 1000})
+    print(bounds)
+    result = spo.minimize(lambda x: -computelikelihood(x, best_nu, posterior),
+        initial_guess, method='TNC', bounds=bounds, options={'verbose': 1})
+
+    print("edge_length = {} " "likelihood = {}".format(result.x[0], -result.fun))
+    # print(np.exp(result.x))
+    print(result.x)
+    for i, j in zip(initial_guess, result.x):
+        print(f"{i} {j} {i-j} {i/j}")
 
 
     # computelikelihood(0.1)
