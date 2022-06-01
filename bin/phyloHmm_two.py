@@ -379,13 +379,13 @@ if __name__ == "__main__":
     # clonal_path = path+'/clonaltree.tree'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
-    path = '/Users/mathieu/Downloads'
+    path = '/home/nehleh/PhiloBacteria/Results/num_1'
     tree_path = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_RAxML_bestTree.tree'
     # tree_path = path+'/num_1_beasttree.newick'
     clonal_path = path+'/num_1_Clonaltree.tree'
     genomefile = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_Wholegenome.fasta'
-    # baciSimLog = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_BaciSim_Log.txt'
-    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
+    baciSimLog = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_BaciSim_Log.txt'
+    json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
