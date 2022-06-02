@@ -16,21 +16,21 @@ rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
 iteration = Channel.value(1..5)
 nu_sim = Channel.of(0.07) //0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1
 recomlen = Channel.of(500) //100,200,300,400,500,1000,2000,3000,4000,5000
-recomrate = Channel.of(0.02) //0.005,0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1
+recomrate = Channel.of(0.01) //0.005,0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1
 
 
 params.xml = "${PWD}/bin/template/GTR_template.xml"
 params.json = "${PWD}/bin/template/GTR_temp_partial.json"
 
 params.genome = 10
-params.genomelen = '5000'
+params.genomelen = '100000'
 params.tMRCA = '0.01'
 params.best = false
 //params.method = 'pb'
 params.hmm_state = '2'
 params.nu_hmm = 0.033
 params.analyse = false
-params.sim_stat = 2 //0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes
+params.sim_stat = 1 //0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes
 params.threshold = 0.9
 params.seq = "/home/nehleh/PhyloCode/Result/Results_13092021/num_4/num_4_Wholegenome_4.fasta"
 // params.outDir = 'Results'

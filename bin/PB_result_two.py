@@ -99,16 +99,16 @@ if __name__ == "__main__":
 
 
 
-    path = '/home/nehleh/PhiloBacteria/Results/num_1'
-    clonal_path = path+'/num_1_Clonaltree.tree'
-    genomefile = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_Wholegenome.fasta'
-    baciSimLog = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_BaciSim_Log.txt'
-    # pb_tree = path+'/num_1_nu_0.05_Rlen_1000_Rrate_0.01_physherTree_PB.newick'
-    pb_tree = '/home/nehleh/PhiloBacteria/bin/pb_tree.newick'
-    recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
-    # recomProb = path+'/num_1_nu_0.05_Rlen_1000_Rrate_0.01_Recom_prob_two.h5'
-    baciSimStat = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_Recom_stat.csv'
-    json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
+    # path = '/home/nehleh/PhiloBacteria/Results/num_1'
+    # clonal_path = path+'/num_1_Clonaltree.tree'
+    # genomefile = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_Wholegenome.fasta'
+    # baciSimLog = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_BaciSim_Log.txt'
+    # # pb_tree = path+'/num_1_nu_0.05_Rlen_1000_Rrate_0.01_physherTree_PB.newick'
+    # pb_tree = '/home/nehleh/PhiloBacteria/bin/pb_tree.newick'
+    # recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
+    # # recomProb = path+'/num_1_nu_0.05_Rlen_1000_Rrate_0.01_Recom_prob_two.h5'
+    # baciSimStat = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_Recom_stat.csv'
+    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')

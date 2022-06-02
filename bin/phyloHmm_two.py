@@ -147,18 +147,17 @@ def baumwelch_parallel(target_node):
 def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
     mytree = []
     tipdata = set_tips_partial(column,tips_num)
-    posterior0 = []
-    posterior1 = []
+    # posterior0 = [None] * 17
+    posterior1 = [None] * 17
     t_node = []
-    best_nu = []*18
-
+    best_nu = [None] * 17
     # make per_site likelihood and per_site partials for all nodes including tips and internal nodes
     persite_ll, partial = computelikelihood_mixture(tree, alignment_len, tipdata, GTR_sample, tips_num)
 
     # each node play the role of target nodes
     for id_tree, target_node in enumerate(tree.postorder_node_iter()):
         if target_node != tree.seed_node:
-        #     print(target_node)
+            # print(target_node)
             recombination_trees = []
             mytree.append(Tree.get_from_path(tree_path, 'newick', rooting='force-rooted'))
             set_index(mytree[id_tree],alignment)
@@ -171,15 +170,15 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
             recombination_trees.append(mytree[id_tree].as_string(schema="newick"))
             # find the best nu for target branch based on the maximizing score value of hmm
             nu = my_best_nu(X,tree_path,recombination_trees[0],target_node,tipdata,p_trans,p_start)
-            best_nu[target_node.index] = (target_node.index, nu)
-            # print("nu_first:",nu)
+            best_nu[target_node.index] = nu
+            # print("best_nu:",nu)
 
             # make recombination tree for target node using best nu
             recombination_trees.append(recom_maker(mytree[id_tree],target_node.index,nu))
             emission = compute_logprob_phylo_bw(X, recombination_trees, GTR_sample, tipdata, alignment_len)
             best_trans , p = baum_welch(X, p_trans, emission, p_start, n_iter=1)
             p = p.T
-            # print("first:",best_trans)
+            # print("p-------------------------------------:",p[21700,1])
 
             hidden = viterbi(X,best_trans,emission,p_start)
             p_trans_nu0 = np.array([[1, 0],
@@ -197,8 +196,9 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
                 delta = -1/np.log(trans[1][1])
             # print("delta:",delta)
 
-            posterior0.append(p[:, 0])  # posterior probability for clonal tree
-            posterior1.append(p[:, 1])  # posterior probability for recombination tree
+
+            # posterior1.append(p[:, 1])  # posterior probability for recombination tree
+            posterior1[target_node.index] = p[:, 1]
             t_node.append(target_node.index)
             # Update tip partials based on the posterior probability
             if target_node.is_leaf():
@@ -207,7 +207,7 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
 
 
     np.set_printoptions(threshold=np.inf)
-    myposterior0 = np.array(posterior0, dtype='double')
+    # myposterior0 = np.array(posterior0, dtype='double')
     myposterior1 = np.array(posterior1, dtype='double')
     # print(myposterior1)
     # recom_prob = pd.DataFrame( {'recom_nodes': t_node, 'posterior0': pd.Series(list(myposterior0)),'posterior1': pd.Series(list(myposterior1))})
@@ -376,12 +376,12 @@ if __name__ == "__main__":
     # clonal_path = path+'/clonaltree.tree'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
-    path = '/home/nehleh/PhiloBacteria/Results/num_1'
-    tree_path = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_RAxML_bestTree.tree'
+    path = '/home/nehleh/PhiloBacteria/Results/num_2'
+    tree_path = path+'/num_2_nu_0.07_Rlen_500_Rrate_0.01_RAxML_bestTree.tree'
     # tree_path = path+'/num_1_beasttree.newick'
-    clonal_path = path+'/num_1_Clonaltree.tree'
-    genomefile = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_Wholegenome.fasta'
-    baciSimLog = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.02_BaciSim_Log.txt'
+    clonal_path = path+'/num_2_Clonaltree.tree'
+    genomefile = path+'/num_2_nu_0.07_Rlen_500_Rrate_0.01_Wholegenome.fasta'
+    baciSimLog = path+'/num_2_nu_0.07_Rlen_500_Rrate_0.01_BaciSim_Log.txt'
     json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
@@ -416,14 +416,14 @@ if __name__ == "__main__":
     # ============================================ setting parameters ==================================================
     tree = Tree.get_from_path(tree_path,schema='newick',rooting='force-rooted')
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile),schema="fasta")
-    set_index(tree, alignment)
-    print(tree.as_ascii_plot(show_internal_node_labels=True))
-
     nodes_number = len(tree.nodes())
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
     GTR_sample = GTR_model(rates, pi)
     column = get_DNA_fromAlignment(alignment)
+    set_index(tree, alignment)
+    print(tree.as_ascii_plot(show_internal_node_labels=True))
+
 
 
     p_start = np.array([0.9, 0.1])
@@ -431,60 +431,37 @@ if __name__ == "__main__":
                         [1/alignment_len, 1-(1/alignment_len)]])
 
 
+    brs = [None]*18
+    for _, node in enumerate(tree.postorder_node_iter()):
+        print(node, node.edge_length)
+        brs[node.index] = node.edge_length
+    brs.pop()
+
     # doing hmm
     start = time.time()
     tipdata, recom_prob, posterior, best_nu = phylohmm_baumwelch(tree, alignment_len, column, nu, p_start, p_trans, tips_num)
 
-    brs = [None]*18
-    for _, node in enumerate(tree.postorder_node_iter()):
-        brs[node.index] = node.edge_length
-    brs.pop()
+    # print("posterior[:,21700]:",posterior[:,21700])
 
-    # def max_LL():
-    #     initial_guess = [0.01]
-    #     bounds = Bounds([0], [0.1])
-    #     result = spo.minimize(computelikelihood, initial_guess, method='trust-constr', bounds=bounds, options={'verbose': 1})
-    #     print("edge_length = {} " "likelihood = {}".format(result.x[0], -result.fun))
-    #     return result
-    #
-    #
-    # max_LL()
-        
+
+
     initial_guess = np.asarray(brs)
-    # posterior = np.zeros((17, 5000))
-    # best_nu = np.zeros(17)
     posterior = np.asarray(posterior)
-    best_nu = np.asarray(best_nu)[:,1]
-    for node in tree.postorder_node_iter():
-        if node.index < len(best_nu):
-            print(f"{node.index} {best_nu[node.index]}")
-    # tipdata = set_tips_partial(column, tips_num)
-    print(brs)
-    print(best_nu)
-    print(initial_guess.shape)
-    bounds = [[1.e-20, 0.1]]*len(brs)
-    print(best_nu.shape, posterior.shape)
-    fn = lambda x: -computelikelihood(np.exp(x), best_nu, posterior)
-    print('LnL', -fn(np.log(initial_guess)))
-    # print('LnL', -fn(np.log(initial_guess+10.)))
-    # print(GTR_sample.p_t(np.array([1.0])))
-    # print(GTR_sample.p_t(np.array([.1])))
-    # print(GTR_sample.p_t(np.array([.000000001])))
-    # print(GTR_sample.p_t(np.array([1., 0.1, .000000001])))
-    # exit(2)
+    bounds = [[1.e-10, tree.max_distance_from_root()]]*len(brs)
+    # print("bounds:",bounds)
+
+
     # result = spo.minimize(fn, np.log(initial_guess), method='CG', options={'ftol': 0.0000001, 'maxiter': 1000})
-    print(bounds)
-    result = spo.minimize(lambda x: -computelikelihood(x, best_nu, posterior),
-        initial_guess, method='TNC', bounds=bounds, options={'verbose': 1})
-
-    print("edge_length = {} " "likelihood = {}".format(result.x[0], -result.fun))
-    # print(np.exp(result.x))
-    print(result.x)
-    for i, j in zip(initial_guess, result.x):
-        print(f"{i} {j} {i-j} {i/j}")
 
 
-    # computelikelihood(0.1)
+    result = spo.minimize(lambda x: -computelikelihood(x, best_nu, posterior),initial_guess, method='TNC', bounds=bounds)
+
+    print("LNL_optimized = {}" "   edge_length_optimized = {} ".format(-result.fun, result.x))
+
+
+
+
+
 
 
     # posterior_rec = []
@@ -493,7 +470,7 @@ if __name__ == "__main__":
     # best_nu = []
     # np.set_printoptions(threshold=np.inf)
     # tipdata = set_tips_partial(column, tips_num)
-    # persite_ll, partial = computelikelihood_mixture(tree, alignment_len, tipdata, GTR_sample, tips_num)
+    # # persite_ll, partial = computelikelihood_mixture(tree, alignment_len, tipdata, GTR_sample, tips_num)
     #
     # for node in tree.postorder_node_iter():
     #     if node != tree.seed_node:
@@ -509,17 +486,17 @@ if __name__ == "__main__":
     #         best_nu.append([target_node.index, nu])
     #         if target_node.is_leaf():
     #             update_mixture_partial_PSE(column,target_node,tipdata,p[:, 1],nu)
-    #
-    #
-    # # print(tipdata[36700])
-    #
+
+
+    # print(tipdata[36700])
+
     # recom_prob = pd.DataFrame( {'recom_nodes': tnodes,'posterior_rec': pd.Series(list(posterior_rec))})
     # write_best_nu(best_nu, 'PB_nu_two.txt')
-    # # end = time.time()
-    # # # print(recom_prob)
-    # # print("time phylohmm", end - start)
-    #
-    #
+    # end = time.time()
+    # # print(recom_prob)
+    # print("time phylohmm", end - start)
+
+
     # start = time.time()
     # my_tipdata = tipdata.transpose(1, 0, 2)
     # taxon = []
