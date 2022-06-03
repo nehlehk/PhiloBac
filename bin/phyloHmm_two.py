@@ -102,7 +102,6 @@ def my_best_nu(X,tree_path,clonal,target_node,tipdata,p_trans,p_start):
         emission = compute_logprob_phylo_bw(X, [clonal, r_trees], GTR_sample, tipdata, alignment_len)
         alpha , c = forward(X, p_trans, emission, p_start)
         s = np.sum(np.log(c))
-        # print(nu,s)
         return s
 
     result = spo.minimize_scalar(fn, method="bounded", bounds=(0.0, 0.5) , options={'disp': 1})
@@ -147,7 +146,6 @@ def baumwelch_parallel(target_node):
 def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
     mytree = []
     tipdata = set_tips_partial(column,tips_num)
-    # posterior0 = [None] * 17
     posterior1 = [None] * 17
     t_node = []
     best_nu = [None] * 17
@@ -157,7 +155,7 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
     # each node play the role of target nodes
     for id_tree, target_node in enumerate(tree.postorder_node_iter()):
         if target_node != tree.seed_node:
-            # print(target_node)
+            print(target_node)
             recombination_trees = []
             mytree.append(Tree.get_from_path(tree_path, 'newick', rooting='force-rooted'))
             set_index(mytree[id_tree],alignment)
@@ -171,16 +169,13 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
             # find the best nu for target branch based on the maximizing score value of hmm
             nu = my_best_nu(X,tree_path,recombination_trees[0],target_node,tipdata,p_trans,p_start)
             best_nu[target_node.index] = nu
-            # print("best_nu:",nu)
+            print("best_nu:",nu)
 
             # make recombination tree for target node using best nu
             recombination_trees.append(recom_maker(mytree[id_tree],target_node.index,nu))
             emission = compute_logprob_phylo_bw(X, recombination_trees, GTR_sample, tipdata, alignment_len)
             best_trans , p = baum_welch(X, p_trans, emission, p_start, n_iter=1)
             p = p.T
-            # print("p-------------------------------------:",p[21700,1])
-
-            hidden = viterbi(X,best_trans,emission,p_start)
             p_trans_nu0 = np.array([[1, 0],
                                     [1, 0]])
             if nu <= my_nu[0]: # if the best nu is smaller than a threshold, we consider there is no recombination on that branch
@@ -197,7 +192,6 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
             # print("delta:",delta)
 
 
-            # posterior1.append(p[:, 1])  # posterior probability for recombination tree
             posterior1[target_node.index] = p[:, 1]
             t_node.append(target_node.index)
             # Update tip partials based on the posterior probability
@@ -207,10 +201,7 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
 
 
     np.set_printoptions(threshold=np.inf)
-    # myposterior0 = np.array(posterior0, dtype='double')
     myposterior1 = np.array(posterior1, dtype='double')
-    # print(myposterior1)
-    # recom_prob = pd.DataFrame( {'recom_nodes': t_node, 'posterior0': pd.Series(list(myposterior0)),'posterior1': pd.Series(list(myposterior1))})
     recom_prob = pd.DataFrame({'recom_nodes': t_node, 'posterior_rec': pd.Series(list(myposterior1))})
     write_best_nu(best_nu,'PB_nu_two.txt')
 
@@ -376,12 +367,12 @@ if __name__ == "__main__":
     # clonal_path = path+'/clonaltree.tree'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
-    path = '/home/nehleh/PhiloBacteria/Results/num_2'
-    tree_path = path+'/num_2_nu_0.07_Rlen_500_Rrate_0.01_RAxML_bestTree.tree'
+    path = '/home/nehleh/PhiloBacteria/Results/num_3'
+    tree_path = path+'/num_3_nu_0.07_Rlen_500_Rrate_0.01_RAxML_bestTree.tree'
     # tree_path = path+'/num_1_beasttree.newick'
-    clonal_path = path+'/num_2_Clonaltree.tree'
-    genomefile = path+'/num_2_nu_0.07_Rlen_500_Rrate_0.01_Wholegenome.fasta'
-    baciSimLog = path+'/num_2_nu_0.07_Rlen_500_Rrate_0.01_BaciSim_Log.txt'
+    clonal_path = path+'/num_3_Clonaltree.tree'
+    genomefile = path+'/num_3_nu_0.07_Rlen_500_Rrate_0.01_Wholegenome.fasta'
+    baciSimLog = path+'/num_3_nu_0.07_Rlen_500_Rrate_0.01_BaciSim_Log.txt'
     json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
@@ -422,6 +413,7 @@ if __name__ == "__main__":
     GTR_sample = GTR_model(rates, pi)
     column = get_DNA_fromAlignment(alignment)
     set_index(tree, alignment)
+    # tree.reroot_at_midpoint(update_bipartitions=True)
     print(tree.as_ascii_plot(show_internal_node_labels=True))
 
 
@@ -441,21 +433,10 @@ if __name__ == "__main__":
     start = time.time()
     tipdata, recom_prob, posterior, best_nu = phylohmm_baumwelch(tree, alignment_len, column, nu, p_start, p_trans, tips_num)
 
-    # print("posterior[:,21700]:",posterior[:,21700])
-
-
 
     initial_guess = np.asarray(brs)
-    posterior = np.asarray(posterior)
     bounds = [[1.e-10, tree.max_distance_from_root()]]*len(brs)
-    # print("bounds:",bounds)
-
-
-    # result = spo.minimize(fn, np.log(initial_guess), method='CG', options={'ftol': 0.0000001, 'maxiter': 1000})
-
-
     result = spo.minimize(lambda x: -computelikelihood(x, best_nu, posterior),initial_guess, method='TNC', bounds=bounds)
-
     print("LNL_optimized = {}" "   edge_length_optimized = {} ".format(-result.fun, result.x))
 
 
