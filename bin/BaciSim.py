@@ -367,7 +367,32 @@ def generate_final_report(df,alignment_len,clonal_tree,tips_num):
 
     return final
 # **********************************************************************************************************************
+# simulate an alignment of length seq_len from a tree
+def simulate(tree, seq_len, alphabet='ACTG'):
+    rates = [0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ]
+    pi = [0.2184,0.2606,0.3265,0.1945]
+    GTR_sample = GTR_model(rates, pi)
+    edge_lengths = np.empty(len(tree.taxon_namespace) * 2 - 2)
+    for node in tree.postorder_node_iter():
+        if node != tree.seed_node:
+            edge_lengths[node.index] = node.edge_length
+    edge_lengths /= np.sum(edge_lengths)
 
+    mats = GTR_sample.p_t(np.expand_dims(edge_lengths, axis=1))
+
+    alignment = [None] * (len(tree.taxon_namespace) * 2 - 1)
+    alignment[tree.seed_node.index] = np.random.choice(np.arange(4), seq_len, p=pi)
+    for node in tree.preorder_node_iter():
+        if node != tree.seed_node:
+            node.edge_length = edge_lengths[node.index]
+            sequence = []
+            for i in range(seq_len):
+                probs = mats[node.index][alignment[node.parent_node.index][i],]
+                sequence.append(np.random.choice(np.arange(len(alphabet)), 1, p=probs))
+            alignment[node.index] = np.concatenate(sequence)
+    alignment = {taxon.label: ''.join(list(map(lambda x: alphabet[x], seq))) for taxon, seq in  zip(tree.taxon_namespace, alignment[:len(tree.taxon_namespace)])}
+    return alignment
+# **********************************************************************************************************************
 
 if __name__ == "__main__":
 
@@ -407,8 +432,11 @@ if __name__ == "__main__":
     tree = Tree.get_from_path(clonaltree, 'newick')
     set_index(tree)
     clonal_tree = tree.as_string(schema="newick")
-    # print(tree.as_ascii_plot(show_internal_node_labels=True))
+    tree.resolve_polytomies(update_bipartitions=True)
+    print(tree.as_ascii_plot(show_internal_node_labels=True))
     nodes_num = len(tree.nodes())
+
+
 
 
     if status == 0:

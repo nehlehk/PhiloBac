@@ -10,8 +10,8 @@ import json
 import scipy.optimize as spo
 import time
 from scipy.optimize import Bounds
-
-
+import operator
+import itertools
 
 
 
@@ -169,7 +169,7 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
             # find the best nu for target branch based on the maximizing score value of hmm
             nu = my_best_nu(X,tree_path,recombination_trees[0],target_node,tipdata,p_trans,p_start)
             best_nu[target_node.index] = nu
-            print("best_nu:",nu)
+            # print("best_nu:",nu)
 
             # make recombination tree for target node using best nu
             recombination_trees.append(recom_maker(mytree[id_tree],target_node.index,nu))
@@ -193,7 +193,6 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
 
 
             posterior1[target_node.index] = p[:, 1]
-            t_node.append(target_node.index)
             # Update tip partials based on the posterior probability
             if target_node.is_leaf():
                 update_mixture_partial_PSE(column, target_node,tipdata,p[:, 1],nu)
@@ -202,7 +201,7 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
 
     np.set_printoptions(threshold=np.inf)
     myposterior1 = np.array(posterior1, dtype='double')
-    recom_prob = pd.DataFrame({'recom_nodes': t_node, 'posterior_rec': pd.Series(list(myposterior1))})
+    recom_prob = pd.DataFrame({'posterior_rec': pd.Series(list(myposterior1))})
     write_best_nu(best_nu,'PB_nu_two.txt')
 
     return tipdata,recom_prob,myposterior1,best_nu
@@ -234,6 +233,79 @@ def make_physher_json_partial_1(partial_dict,tree,json_path,outputname):
     jsonFile = open(outputname, "w")
     json.dump(data, jsonFile, indent=4)
     jsonFile.close()
+# **********************************************************************************************************************
+def recom_output(pb_tree,recom_prob,tips_num,threshold,nodes_number):
+    output = np.zeros((alignment_len,nodes_number))
+    rmsedata = np.zeros((alignment_len,tips_num))
+    for i in range(len(recom_prob)):
+        if (i < tips_num):
+            for j in range(alignment_len):
+                if (float(recom_prob['posterior_rec'][i][j]) >= threshold):
+                    output[j, i] = 1
+                    rmsedata[j, i] = 1
+        else:
+            for k in range(alignment_len):
+                if (float(recom_prob['posterior_rec'][i][k]) >= threshold):
+                    # output[k, recom_prob['recom_nodes'][i]] = 1
+                    output[k, i] = 1
+                    desc = set()
+                    d = give_descendents(pb_tree, i, desc, tips_num)
+                    # print(d)
+                    for elm in d:
+                        rmsedata[k, int(elm)] = 1
+    return output,rmsedata
+# **********************************************************************************************************************
+def recom_resultFig_dm(pb_tree,recom_prob,tips_num,mixtureProb,outputname,nodes_number):
+    clonaltree = Tree.get_from_path(pb_tree, 'newick')
+    set_index(clonaltree, alignment)
+    output,rmsedata = recom_output(clonaltree,recom_prob,tips_num,mixtureProb,nodes_number)
+    fig = plt.figure(figsize=(tips_num + 9, tips_num / 2))
+    color = ['red', 'green', 'purple', 'blue', 'black']
+    for i in range(nodes_number):
+        ax = fig.add_subplot(nodes_number, 1, i + 1)
+        if i >= tips_num:
+            desc = set()
+            d = give_descendents(clonaltree, i, desc,tips_num)
+            ax.plot(output[:, i], label=str(i) + ' is mrca:' + str(d), color=color[i % 5])
+        else:
+            ax.plot(output[:, i], label=give_taxon(clonaltree, i), color=color[i % 5])
+        ax.legend(bbox_to_anchor=(0.045, 1.5), prop={'size': 10})
+        ax.set_frame_on(False)
+        ax.axis('off')
+
+    ax.axis('on')
+    ax.set_yticklabels([])
+    plt.text(0.045,2.7, r'', fontsize=14,
+             horizontalalignment='left', verticalalignment='top',
+             bbox=dict(boxstyle="sawtooth", ec=(1., 0.5, 0.5), fc=(1., 0.8, 0.8),)
+             )
+    plt.savefig(outputname)
+    return output,rmsedata
+# **********************************************************************************************************************
+def phyloHMM_Log(c_tree,output,outputname):
+    nodes = []
+    starts = []
+    ends = []
+    recomlens = []
+
+    for i in range(output.shape[1]):
+        non_zeros = [[i for i, value in it] for key, it in itertools.groupby(enumerate(output[:, i]), key=operator.itemgetter(1)) if key != 0]
+        for j in range(len(non_zeros)):
+            if i < tips_num:
+                n = give_taxon(c_tree, i)
+            else:
+                n = i
+            nodes.append(n)
+            starts.append(non_zeros[j][0])
+            ends.append(non_zeros[j][len(non_zeros[j]) - 1])
+            recomlens.append(non_zeros[j][len(non_zeros[j]) - 1] - non_zeros[j][0])
+
+    all_data = {'nodes': nodes, 'start': starts, 'end': ends, 'len': recomlens}
+    df = pd.DataFrame(all_data)
+    df = df.sort_values(by=['nodes'], ascending=[True])
+    df.to_csv(outputname, sep='\t', header=True , index = False)
+
+    return df
 # **********************************************************************************************************************
 def forward(X, trans, emission, initial_distribution):
     alpha = np.zeros((X.shape[0], trans.shape[0]))
@@ -367,19 +439,20 @@ if __name__ == "__main__":
     # clonal_path = path+'/clonaltree.tree'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
-    path = '/home/nehleh/PhiloBacteria/Results/num_3'
-    tree_path = path+'/num_3_nu_0.07_Rlen_500_Rrate_0.01_RAxML_bestTree.tree'
-    # tree_path = path+'/num_1_beasttree.newick'
-    clonal_path = path+'/num_3_Clonaltree.tree'
-    genomefile = path+'/num_3_nu_0.07_Rlen_500_Rrate_0.01_Wholegenome.fasta'
-    baciSimLog = path+'/num_3_nu_0.07_Rlen_500_Rrate_0.01_BaciSim_Log.txt'
-    json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
+    # path = '/home/nehleh/PhiloBacteria/Results/num_1'
+    # tree_path = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.007_RAxML_bestTree.tree'
+    # # tree_path = path+'/num_1_beasttree.newick'
+    # clonal_path = path+'/num_1_Clonaltree.tree'
+    # genomefile = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.007_Wholegenome.fasta'
+    # baciSimLog = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.007_BaciSim_Log.txt'
+    # baciSimStat = path + '/num_1_nu_0.07_Rlen_500_Rrate_0.007_Recom_stat.csv'
+    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
     parser.add_argument('-t', "--raxmltree", type=str, help='tree')
     parser.add_argument('-a', "--alignmentFile", type=str, help='fasta file')
-    parser.add_argument('-cl', "--clonaltreeFile", type=str, help='clonalclonaltreeFile tree from BaciSim')
+    parser.add_argument('-cl', "--clonaltreeFile", type=str, help='clonaltreeFile tree from BaciSim')
     parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
     parser.add_argument('-nu', "--nuHmm", type=float,default=0.033,help='nuHmm')
     parser.add_argument('-p', "--threshold", type=float, default=0.5, help='threshold')
@@ -390,11 +463,13 @@ if __name__ == "__main__":
     parser.add_argument('-st', "--status", type=str,  default='2', help='2 for the two states hmm and 8 for eight states of hmm , 2,8 for both ')
     parser.add_argument('-js', "--jsonFile", type=str, default='/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json', help='jsonFile')
     parser.add_argument('-sim', "--simulation", type=int, default=1, help='1 for the simulation data and 0 for emprical sequence')
+    parser.add_argument('-rs', "--recomstat", type=str, help='recomstat')
     args = parser.parse_args()
 
-    # tree_path = args.raxmltree
-    # genomefile = args.alignmentFile
-    # json_path = args.jsonFile
+    tree_path = args.raxmltree
+    genomefile = args.alignmentFile
+    json_path = args.jsonFile
+    baciSimStat = args.recomstat
     pi = args.frequencies
     rates = args.rates
     nu = args.nuHmm
@@ -425,7 +500,6 @@ if __name__ == "__main__":
 
     brs = [None]*18
     for _, node in enumerate(tree.postorder_node_iter()):
-        print(node, node.edge_length)
         brs[node.index] = node.edge_length
     brs.pop()
 
@@ -434,10 +508,48 @@ if __name__ == "__main__":
     tipdata, recom_prob, posterior, best_nu = phylohmm_baumwelch(tree, alignment_len, column, nu, p_start, p_trans, tips_num)
 
 
+
     initial_guess = np.asarray(brs)
     bounds = [[1.e-10, tree.max_distance_from_root()]]*len(brs)
     result = spo.minimize(lambda x: -computelikelihood(x, best_nu, posterior),initial_guess, method='TNC', bounds=bounds)
-    print("LNL_optimized = {}" "   edge_length_optimized = {} ".format(-result.fun, result.x))
+
+
+    new_edges = np.asarray(result.x)
+    for node in tree.postorder_node_iter():
+        if node != tree.seed_node:
+            node.edge_length = new_edges[node.index]
+
+
+    tree.write(path="PhiloBacter.tree", schema="newick")
+
+    phyloHMMData2, rmse_PB2 = recom_resultFig_dm("PhiloBacter.tree", recom_prob, tips_num, threshold,'PB_Recom_two.jpeg', nodes_number)
+    phyloHMM_log = phyloHMM_Log(tree, phyloHMMData2, 'PB_Log_two.txt')
+    recom_count_pb2 = len(phyloHMM_log)
+    write_value(len(phyloHMM_log), 'PB_rcount_two.csv')
+    phyloHMM_log[['len']].to_csv('PB_delta_two.csv', index=False)
+    mean_dalta = phyloHMM_log[['len']].mean()
+
+
+    if simulation == 1 :
+        clonal_path = args.clonaltreeFile
+        baciSimLog = args.recomlogFile
+        clonal_tree = Tree.get_from_path(clonal_path, 'newick')
+        set_index(clonal_tree, alignment)
+        clonal_tree.deroot()
+        clonal_tree.update_bipartitions()
+        print(clonal_tree.as_ascii_plot(show_internal_node_labels=True))
+        clonal_tree.resolve_polytomies(update_bipartitions=True)
+        nodes_number_c = len(clonal_tree.nodes())
+        realData,rmse_real = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
+
+        recom_stat = pd.read_csv(open(baciSimStat, "r"), sep=',')
+        num_recom_real = len(recom_stat)
+        write_value(len(recom_stat), 'baci_rcount.csv')
+        recom_stat[['len']].to_csv('baci_delta.csv' , index=False)
+
+        rmse_real_philo2 = mean_squared_error(rmse_real,rmse_PB2,squared=False)
+        write_value(rmse_real_philo2, 'RMSE_PB_two.csv')
+
 
 
 
@@ -469,12 +581,11 @@ if __name__ == "__main__":
     #             update_mixture_partial_PSE(column,target_node,tipdata,p[:, 1],nu)
 
 
-    # print(tipdata[36700])
 
     # recom_prob = pd.DataFrame( {'recom_nodes': tnodes,'posterior_rec': pd.Series(list(posterior_rec))})
     # write_best_nu(best_nu, 'PB_nu_two.txt')
     # end = time.time()
-    # # print(recom_prob)
+    # print(recom_prob)
     # print("time phylohmm", end - start)
 
 

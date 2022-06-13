@@ -8,7 +8,6 @@ from dendropy import Tree
 import dendropy
 from sklearn.metrics import mean_squared_error
 from utility import *
-from BCBio import GFF
 import operator
 import itertools
 
