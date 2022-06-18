@@ -13,10 +13,10 @@ c_file = file(params.test_file)
 
 frequencies = Channel.value(' 0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
-iteration = Channel.value(1..5)
+iteration = Channel.value(1..10)
 nu_sim = Channel.of(0.1) //0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1
 recomlen = Channel.of(500) //100,200,300,400,500,1000,2000,3000,4000,5000
-recomrate = Channel.of(0.005) //0.005,0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1
+recomrate = Channel.of(0.01) //0.005,0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1
 
 
 params.xml = "${PWD}/bin/template/GTR_template.xml"
@@ -175,20 +175,20 @@ process PhiloBacteria {
         tuple val(iteration), path ('Recomstat')
 
      output:
-        path 'Recom_prob_two.h5'    , emit: recom_prob_two   , optional: true
-        path 'PB_nu_two.txt'        , emit: PB_nu_two        , optional: true
-        path 'PB_two.json'          , emit: PB_JSON_two      , optional: true
-        path 'PB_gap.json'          , emit: PB_JSON_gap      , optional: true
-        path 'PB_del.json'          , emit: PB_JSON_del      , optional: true
-        path 'RMSE_PB_two.csv'      , emit :PB_RMSE_two      , optional: true
-        path 'PB_Recom_two.jpeg'    , emit: PB_Recom_two     , optional: true
-        path 'PB_Log_two.txt'       , emit: PB_Log_two       , optional: true
-        path 'PB_rcount_two.csv'    , emit: PB_rcount_two    , optional: true
-        path 'baci_rcount.csv'      , emit: Baci_rcount      , optional: true
-        path 'baci_delta.csv'       , emit: Baci_Delta       , optional: true
-        path 'PB_delta_two.csv'     , emit: PB_Delta_two     , optional: true
-        path 'PhiloBacter.tree'     , emit: PB_tree          , optional: true
-
+        path 'Recom_prob_two.h5'                , emit: recom_prob_two   , optional: true
+        path 'PB_nu_two.txt'                    , emit: PB_nu_two        , optional: true
+        path 'PB_two.json'                      , emit: PB_JSON_two      , optional: true
+        path 'PB_gap.json'                      , emit: PB_JSON_gap      , optional: true
+        path 'PB_del.json'                      , emit: PB_JSON_del      , optional: true
+        path 'RMSE_PB_two.csv'                  , emit :PB_RMSE_two      , optional: true
+        path 'PB_Recom_two.jpeg'                , emit: PB_Recom_two     , optional: true
+        path 'PB_Log_two.txt'                   , emit: PB_Log_two       , optional: true
+        path 'PB_rcount_two.csv'                , emit: PB_rcount_two    , optional: true
+        path 'baci_rcount.csv'                  , emit: Baci_rcount      , optional: true
+        path 'baci_delta.csv'                   , emit: Baci_Delta       , optional: true
+        path 'PB_delta_two.csv'                 , emit: PB_Delta_two     , optional: true
+        path 'PhiloBacter.tree'                 , emit: PB_tree          , optional: true
+        path 'PhiloBacter_normaltips.tree'      , emit: PB_treenormal    , optional: true
 
 
      """
@@ -365,18 +365,17 @@ process mergeTreeFiles {
          path CFMLtree
          path GubbinsRescaletree
          path physherTree_two
-//        path physherTree_two_g
-//         path physherTree_two_d
          val iteration
          val nu_sim
          val recomlen
          val recomrate
+         path pbtree_normal
 
     output:
          path 'AllOtherTrees.newick' , emit: allOtherTrees
 
      """
-       mergeFiles.py ${CFMLtree} ${GubbinsRescaletree} ${physherTree_two} > AllOtherTrees.newick
+       mergeFiles.py ${CFMLtree} ${GubbinsRescaletree} ${physherTree_two} ${pbtree_normal} > AllOtherTrees.newick
      """
 }
 
@@ -619,7 +618,7 @@ workflow {
             RMSE_summary(CollectedRMSE_CFML,CollectedRMSE_Gubb,CollectedRMSE_PB_two)
             RecomCount(CollectedRcount_Baci,CollectedRcount_PB_two,CollectedRcount_Gubb,CollectedRcount_CFML)
             Delta_Summary(CollectedDelta_Baci,CollectedDelta_PB_two,CollectedDelta_Gubb,CollectedDelta_CFML)
-            mergeTreeFiles(ClonalFrameML.out.CFMLtree,Gubbins.out.GubbinsRescaletree,PhiloBacteria.out.PB_tree,Sim.out.iteration,Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
+            mergeTreeFiles(ClonalFrameML.out.CFMLtree,Gubbins.out.GubbinsRescaletree,PhiloBacteria.out.PB_tree,Sim.out.iteration,Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate,PhiloBacteria.out.PB_treenormal)
             //mergeTreeFiles(ClonalFrameML.out.CFMLtree,Gubbins.out.GubbinsRescaletree,p_tree_PB.out.physherTree_two,Sim.out.iteration,Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
             TreeCmp(Sim.out.clonaltree,mergeTreeFiles.out.allOtherTrees,Sim.out.iteration,Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
             collectedCMP_tree = TreeCmp.out.Comparison.collectFile(name:"all_cmpTrees.result",storeDir:"${PWD}/Summary_Results", keepHeader:true , sort: false)

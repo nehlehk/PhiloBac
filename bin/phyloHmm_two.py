@@ -152,6 +152,7 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
     # make per_site likelihood and per_site partials for all nodes including tips and internal nodes
     persite_ll, partial = computelikelihood_mixture(tree, alignment_len, tipdata, GTR_sample, tips_num)
 
+
     # each node play the role of target nodes
     for id_tree, target_node in enumerate(tree.postorder_node_iter()):
         if target_node != tree.seed_node:
@@ -339,7 +340,6 @@ def baum_welch(X, trans, emission, initial_distribution, n_iter=1):
     T = len(X)
 
     for n in range(n_iter):
-        recombination_trees = []
         alpha,c  = forward(X, trans, emission, initial_distribution)
         beta = backward(X, trans, emission,c)
 
@@ -430,6 +430,32 @@ def computelikelihood(brs, nu, posterior):
     persite_ll = np.log(GTR_sample.get_pi() @ partial[:, tree.seed_node.index, :])
     return persite_ll.sum()
 # **********************************************************************************************************************
+def computelikelihood_normaltips(brs, nu, posterior):
+    # brs: [B] B: number of branches
+    # nu: [B] B: number of branches
+    # posterior: [B,N] N: number of sites
+    # P [B,4,4]
+    tipdata = set_tips_partial(column, tips_num)
+    partial = np.empty((4,nodes_number, alignment_len))
+    partial[:,0:tips_num,:] = tipdata.T
+    P = GTR_sample.p_t(brs)
+    P_nu = GTR_sample.p_t(brs + nu)
+    for node in tree.postorder_node_iter():
+        if not node.is_leaf():
+            children = node.child_nodes()
+            post = np.expand_dims(np.expand_dims(posterior[children[0].index], -1), -1)
+            P_mixture = ((1 - post) * P[children[0].index] + post * P_nu[children[0].index])
+            partial[:, node.index, :] = np.squeeze(P_mixture @ np.expand_dims(partial[:, children[0].index, :].T, -1), -1).T
+            for i in range(1, len(children)):
+                post = np.expand_dims(np.expand_dims(posterior[children[i].index], -1), -1)
+                P_mixture = ((1 - post) * P[children[i].index] + post * P_nu[children[i].index])
+                partial[:, node.index, :] *= np.squeeze(P_mixture @ np.expand_dims(partial[:, children[i].index, :].T, -1), -1).T
+
+    persite_ll = np.log(GTR_sample.get_pi() @ partial[:, tree.seed_node.index, :])
+    return persite_ll.sum()
+# **********************************************************************************************************************
+
+
 if __name__ == "__main__":
 
     # path = '/home/nehleh/Desktop/sisters/mutiple_sisters/'
@@ -439,14 +465,14 @@ if __name__ == "__main__":
     # clonal_path = path+'/clonaltree.tree'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
-    # path = '/home/nehleh/PhiloBacteria/Results/num_1'
-    # tree_path = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.007_RAxML_bestTree.tree'
-    # # tree_path = path+'/num_1_beasttree.newick'
-    # clonal_path = path+'/num_1_Clonaltree.tree'
-    # genomefile = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.007_Wholegenome.fasta'
-    # baciSimLog = path+'/num_1_nu_0.07_Rlen_500_Rrate_0.007_BaciSim_Log.txt'
-    # baciSimStat = path + '/num_1_nu_0.07_Rlen_500_Rrate_0.007_Recom_stat.csv'
-    # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
+    path = '/home/nehleh/PhiloBacteria/Results_08/num_1'
+    tree_path = path+'/num_1_nu_0.08_Rlen_500_Rrate_0.007_RAxML_bestTree.tree'
+    # tree_path = path+'/num_1_beasttree.newick'
+    clonal_path = path+'/num_1_Clonaltree.tree'
+    genomefile = path+'/num_1_nu_0.08_Rlen_500_Rrate_0.007_Wholegenome.fasta'
+    baciSimLog = path+'/num_1_nu_0.08_Rlen_500_Rrate_0.007_BaciSim_Log.txt'
+    baciSimStat = path + '/num_1_nu_0.08_Rlen_500_Rrate_0.007_Recom_stat.csv'
+    json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
@@ -466,10 +492,10 @@ if __name__ == "__main__":
     parser.add_argument('-rs', "--recomstat", type=str, help='recomstat')
     args = parser.parse_args()
 
-    tree_path = args.raxmltree
-    genomefile = args.alignmentFile
-    json_path = args.jsonFile
-    baciSimStat = args.recomstat
+    # tree_path = args.raxmltree
+    # genomefile = args.alignmentFile
+    # json_path = args.jsonFile
+    # baciSimStat = args.recomstat
     pi = args.frequencies
     rates = args.rates
     nu = args.nuHmm
@@ -511,7 +537,22 @@ if __name__ == "__main__":
 
     initial_guess = np.asarray(brs)
     bounds = [[1.e-10, tree.max_distance_from_root()]]*len(brs)
+    # result_normaltips = spo.minimize(lambda x: -computelikelihood_normaltips(x, best_nu, posterior), initial_guess, method='TNC', bounds=bounds)
+    # new_edges = np.asarray(result_normaltips.x)
+    # for node in tree.postorder_node_iter():
+    #     if node != tree.seed_node:
+    #         node.edge_length = new_edges[node.index]
+    # tree.write(path="PhiloBacter_normaltips.tree", schema="newick")
+
     result = spo.minimize(lambda x: -computelikelihood(x, best_nu, posterior),initial_guess, method='TNC', bounds=bounds)
+    new_edges = np.asarray(result.x)
+    for node in tree.postorder_node_iter():
+        if node != tree.seed_node:
+            node.edge_length = new_edges[node.index]
+    tree.write(path="PhiloBacter.tree", schema="newick")
+
+
+
 
 
     new_edges = np.asarray(result.x)

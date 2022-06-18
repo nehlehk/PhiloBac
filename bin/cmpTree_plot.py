@@ -21,10 +21,10 @@ df = pd.read_csv(f,sep='\t', names=['No', 'clonalTree','otherTrees', 'Quartet' ,
 
 # print(df)
 
-new_df= df.loc[df['otherTrees'].between('0' , '4' , inclusive=False )].apply(pd.to_numeric)
-new_df['otherTrees'].replace(to_replace=[1,2,3],value=['CFML','Gubbins','PB2'] ,inplace=True)
+new_df= df.loc[df['otherTrees'].between('0' , '5' , inclusive=False )].apply(pd.to_numeric)
+new_df['otherTrees'].replace(to_replace=[1,2,3,4],value=['CFML','Gubbins','PB2_Prob_par','PB2_nor_par'] ,inplace=True)
 # print(new_df)
-# g_df = new_df.loc[(new_df['otherTrees'] != 'Gubbins') ]
+new_df = new_df.loc[(new_df['otherTrees'] != 'Gubbins') ]
 
 
 

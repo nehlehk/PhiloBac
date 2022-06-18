@@ -112,32 +112,24 @@ def recom_on_alignment(recom_num,recom_len,alignment_len,clonal_tree,node_labels
     return df,all_data
 # **********************************************************************************************************************
 def ex_recom_maker(tree ,node ,nu ,taxa):
-    rand_nu = np.random.normal(nu,0.007)
+    # rand_nu = np.random.normal(nu,0.007)
+    rand_nu = nu
     write_sim_nu(rand_nu, node)
     co_recom = rand_nu/2
-    # co_recom = rand_nu
     new_tree = dendropy.Tree(taxon_namespace=taxa)
     parent = node.parent_node
 
-    # print(node)
-    # print("tree.max_distance_from_root():",tree.max_distance_from_root())
-    # print("co_recom + node.edge_length:",co_recom + node.edge_length)
-    # print("parent.distance_from_tip():",parent.distance_from_tip())
-
-
     # changeing in topology when recombiantion is larger than tree.max_distance_from_root()
-    # if co_recom >= tree.max_distance_from_root():
-    if (co_recom + node.edge_length) >= tree.max_distance_from_root():
+    if (co_recom + node.edge_length + node.distance_from_tip()) >= tree.max_distance_from_root():
       if (node.edge_length is None):
         node.edge.length = 0
-      # new_tree = dendropy.Tree(taxon_namespace=taxa)
       if node.is_leaf():
-        external_len = co_recom + node.edge_length - tree.max_distance_from_root()
+        external_len = (co_recom + node.edge_length) - tree.max_distance_from_root()
         tree.prune_subtree(node)
         other_nodes = tree.seed_node
         new_tree.seed_node.add_child(other_nodes)
         new_tree.seed_node.add_child(node)
-        other_nodes.edge_length = external_len
+        other_nodes.edge_length = co_recom + node.edge_length - other_nodes.distance_from_tip()
         node.edge_length = co_recom + node.edge_length
       else:
         tree.prune_subtree(node)
@@ -148,45 +140,56 @@ def ex_recom_maker(tree ,node ,nu ,taxa):
         other_nodes.edge_length = node.distance_from_tip() + node.edge_length - other_nodes.distance_from_tip()
     #*************************************************************************
     # topology does not change in this case:
-    elif ((co_recom + node.edge_length) < parent.distance_from_tip()) and (node.is_leaf):
-        print(" *********** Stage one --- leaf  ***********")
+    elif  node.is_leaf() and ((co_recom + node.edge_length) < parent.distance_from_tip()) and (parent != tree.seed_node):
+        print(" ((co_recom + node.edge_length) < parent.distance_from_tip()) and (parent != tree.seed_node)")
+        parent.edge.length = parent.distance_from_tip() - (co_recom + node.edge_length)
         node.edge.length = node.edge.length + co_recom
         sister = node.sister_nodes()
         sister[0].edge.length = sister[0].edge.length + co_recom
-        parent.edge.length = parent.edge.length - co_recom
         new_tree = tree
-    elif ((co_recom + node.edge_length) < parent.distance_from_tip()) and (node.is_internal):
-        print(" *********** Stage one --- internal  ***********")
+    elif ((co_recom + node.edge_length) < parent.distance_from_tip()) and (parent == tree.seed_node):
+        print("((co_recom + node.edge_length) < parent.distance_from_tip()) and (parent == tree.seed_node)")
         node.edge.length = node.edge.length + co_recom
+        sister = node.sister_nodes()
+        sister[0].edge.length = sister[0].edge.length + co_recom
         new_tree = tree
     #*************************************************************************
     # changing in topology to make recombination tree:
-    elif ((co_recom + node.edge_length) > parent.distance_from_tip())  and ((co_recom + node.edge_length) < tree.max_distance_from_root()):
+    elif  ((co_recom + node.edge_length) > parent.distance_from_tip())  and ((co_recom + node.edge_length + node.distance_from_tip()) < tree.max_distance_from_root()):
         ancestor = []
         recom_length = co_recom + node.edge_length
+        totip = node.distance_from_tip()
         for id,tmp_node in enumerate(node.ancestor_iter()):
             ancestor.append(tmp_node)
-            # print(id ,"::::::",tmp_node.index)
-            if recom_length < tmp_node.distance_from_tip() :
+            if recom_length + totip < tmp_node.distance_from_tip() :
                 attached_node = tmp_node
                 attached_id = id
-                # print(attached_node.index)
                 break
 
+        sister = node.sister_nodes()
+        grandparent = parent.parent_node
         relocated_nodes = ancestor[attached_id-1]  # relocated node is the adjacent node of recombinant node
-        parent.remove_child(node)         # the original recombinant node was removed to reinsert in the other side
-        attached_node.remove_child(relocated_nodes) # relocated node was removed to reinsert in to right side
-        newborn = dendropy.datamodel.treemodel.Node()  # newborn in the new mrca of recombinant node and its sister
-        newborn.edge_length = attached_node.distance_from_tip() - recom_length
-        node.edge_length = recom_length
-        newborn.add_child(node)
-        relocated_nodes.edge_length = relocated_nodes.edge_length - newborn.edge_length
-        newborn.add_child(relocated_nodes)
-        attached_node.add_child(newborn)
-        new_tree.seed_node = tree.seed_node
-        print("Second:")
-        print(tree.as_string(schema="newick"))
-        # recombination_trees.append(tree.as_string(schema="newick"))
+        if parent == relocated_nodes :
+            node.edge_length = co_recom + node.edge_length
+            sister[0].edge_length = sister[0].edge_length + co_recom
+            parent.edge_length = parent.edge_length - co_recom
+            new_tree = tree
+        else:
+            parent.remove_child(node)         # the original recombinant node was removed to reinsert in the other side
+            attached_node.remove_child(relocated_nodes) # relocated node was removed to reinsert in to right side
+            newborn = dendropy.datamodel.treemodel.Node()  # newborn in the new mrca of recombinant node and its sister
+            newborn.edge_length = attached_node.distance_from_tip() - (recom_length + totip)
+            node.edge_length = recom_length
+            newborn.add_child(node)
+            relocated_nodes.edge_length = relocated_nodes.edge_length - newborn.edge_length
+            if (not grandparent is None):
+                grandparent.remove_child(parent)
+                grandparent.add_child(sister[0])
+                sister[0].edge_length = sister[0].edge_length + parent.edge_length
+            newborn.add_child(relocated_nodes)
+            # sister[0].edge_length = sister[0].edge_length + parent.edge_length
+            attached_node.add_child(newborn)
+            new_tree.seed_node = tree.seed_node
     #*************************************************************************
     return new_tree.as_string(schema="newick"),rand_nu
 #***********************************************************************************************************************
@@ -278,11 +281,8 @@ def simple_merge(recomtrees , recomnodes):
         equ[treeid, 1:3] = give_equivalent_node(rtree)
         equ[treeid, 3] = treeid
 
-    # print(equ)
-
     for i in range(len(equ)):
       main_node = clonaltree.find_node_with_label(str(int(equ[i][0])))
-      # print(main_node)
       main_node.edge_length = equ[i][2]
 
     return clonaltree.as_string(schema="newick")
@@ -405,8 +405,8 @@ if __name__ == "__main__":
     parser.add_argument('-n', "--tips_number", type=int, default=10 , help='Sets the number of isolates (default is 10)')
     parser.add_argument('-g', "--alignment_len", type=int, default=100000 , help='Sets the number and lengths of fragments of genetic material (default is 5000)')
     parser.add_argument('-l', "--recom_len", type=int, default=500, help='Sets the average length of an external recombinant interval, (default is 500)')
-    parser.add_argument('-r', "--recom_rate",type=float, default=0.1, help='Sets the site-specific rate of external (between species) recombination, (default is 0.05)')
-    parser.add_argument('-nu',"--nu" ,  type=float, default=0.05, help='nu')
+    parser.add_argument('-r', "--recom_rate",type=float, default=0.005, help='Sets the site-specific rate of external (between species) recombination, (default is 0.05)')
+    parser.add_argument('-nu',"--nu" ,  type=float, default=0.01, help='nu')
     parser.add_argument('-s',"--status" ,  type=int, default=1, help='0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes')
     parser.add_argument('-f', "--fixed", type=int, default=1, help='0 for fixed number and fixed len of recombination and 1 for normal/random way making recombination events.')
     parser.add_argument('-e', "--each_recom", type=int, default=1, help='each_recom')
@@ -432,11 +432,14 @@ if __name__ == "__main__":
     tree = Tree.get_from_path(clonaltree, 'newick')
     set_index(tree)
     clonal_tree = tree.as_string(schema="newick")
-    tree.resolve_polytomies(update_bipartitions=True)
+    # tree.resolve_polytomies(update_bipartitions=True)
     print(tree.as_ascii_plot(show_internal_node_labels=True))
     nodes_num = len(tree.nodes())
 
-
+    # recom_node = tree.find_node_with_label(str(int(10)))
+    # recom_tree, my_nu , new_tree = ex_recom_maker(tree, recom_node, nu_ex, taxa)
+    # print(recom_tree)
+    # print(new_tree.as_ascii_plot(show_internal_node_labels=True))
 
 
     if status == 0:
@@ -454,13 +457,3 @@ if __name__ == "__main__":
 
     output = make_recom_fig(all_data,alignment_len, nodes_num, tips_num, clonal_tree,recom_num)
     final_report = generate_final_report(df, alignment_len, clonal_tree, tips_num)
-
-
-
-
-
-
-
-
-
-
