@@ -20,4 +20,3 @@ if __name__ == "__main__":
 
 
     make_clonaltree(tips_num, tMRCA)
-    # make_clonaltree_unrooted(tips_num, tMRCA)

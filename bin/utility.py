@@ -201,15 +201,6 @@ def make_clonaltree(tips_num,max_tMRCA):
 
     return clonal_tree
 # **********************************************************************************************************************
-def make_clonaltree_unrooted(tips_num,max_tMRCA):
-    taxon_list = []
-    for i in range(tips_num):
-        taxon_list.append(str(i))
-    t = ete3.Tree()
-    t.populate(tips_num, names_library=taxon_list, random_branches=True, branch_range=(0.00001, max_tMRCA))
-    t.unroot()
-    t.write(outfile='./Clonaltree.tree')
-# **********************************************************************************************************************
 def real_recombination(recomLog,clonaltree,nodes_number,alignment_len,tips_num):
     realData = np.zeros((alignment_len,nodes_number))
     rmseData = np.zeros((alignment_len, tips_num))

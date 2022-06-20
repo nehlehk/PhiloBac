@@ -121,7 +121,6 @@ if __name__ == "__main__":
     baciSimLog = path+'/num_4_recom_1_BaciSim_Log.txt'
     pb_tree = path+'/num_4_recom_1_physherTree_PB.newick'
     recomProb = '/home/nehleh/PhiloBacteria/bin/Recom_prob_two.h5'
-    # recomProb = path+'/num_1_recom_1_Recom_prob_two.h5'
     baciSimStat = path+'/num_4_recom_1_Recom_stat.csv'
     json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 

@@ -12,6 +12,7 @@ import time
 from scipy.optimize import Bounds
 import operator
 import itertools
+from dendropy.calculate import treecompare
 
 
 
@@ -146,9 +147,9 @@ def baumwelch_parallel(target_node):
 def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
     mytree = []
     tipdata = set_tips_partial(column,tips_num)
-    posterior1 = [None] * 17
+    posterior1 = [None] * (nodes_number-1)
     t_node = []
-    best_nu = [None] * 17
+    best_nu = [None] * (nodes_number-1)
     # make per_site likelihood and per_site partials for all nodes including tips and internal nodes
     persite_ll, partial = computelikelihood_mixture(tree, alignment_len, tipdata, GTR_sample, tips_num)
 
@@ -197,8 +198,6 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
             # Update tip partials based on the posterior probability
             if target_node.is_leaf():
                 update_mixture_partial_PSE(column, target_node,tipdata,p[:, 1],nu)
-
-
 
     np.set_printoptions(threshold=np.inf)
     myposterior1 = np.array(posterior1, dtype='double')
@@ -465,13 +464,12 @@ if __name__ == "__main__":
     # clonal_path = path+'/clonaltree.tree'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
-    path = '/home/nehleh/PhiloBacteria/Results_08/num_1'
-    tree_path = path+'/num_1_nu_0.08_Rlen_500_Rrate_0.007_RAxML_bestTree.tree'
-    # tree_path = path+'/num_1_beasttree.newick'
-    clonal_path = path+'/num_1_Clonaltree.tree'
-    genomefile = path+'/num_1_nu_0.08_Rlen_500_Rrate_0.007_Wholegenome.fasta'
-    baciSimLog = path+'/num_1_nu_0.08_Rlen_500_Rrate_0.007_BaciSim_Log.txt'
-    baciSimStat = path + '/num_1_nu_0.08_Rlen_500_Rrate_0.007_Recom_stat.csv'
+    path = '/home/nehleh/PhiloBacteria/Results/num_1'
+    tree_path = path+'/num_1_nu_0.05_Rlen_500_Rrate_0.03_RAxML_bestTree.tree'
+    clonal_path = path+'/num_1_nu_0.05_Rlen_500_Rrate_0.03_unroot_Clonaltree.tree'
+    genomefile = path+'/num_1_nu_0.05_Rlen_500_Rrate_0.03_Wholegenome.fasta'
+    baciSimLog = path+'/num_1_nu_0.05_Rlen_500_Rrate_0.03_BaciSim_Log.txt'
+    baciSimStat = path +'/num_1_nu_0.05_Rlen_500_Rrate_0.03_Recom_stat.csv'
     json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
@@ -517,14 +515,14 @@ if __name__ == "__main__":
     # tree.reroot_at_midpoint(update_bipartitions=True)
     print(tree.as_ascii_plot(show_internal_node_labels=True))
 
-
+    print(nodes_number)
 
     p_start = np.array([0.9, 0.1])
     p_trans = np.array([[1-(1/alignment_len), 1/alignment_len],
                         [1/alignment_len, 1-(1/alignment_len)]])
 
 
-    brs = [None]*18
+    brs = [None]*nodes_number
     for _, node in enumerate(tree.postorder_node_iter()):
         brs[node.index] = node.edge_length
     brs.pop()
@@ -537,31 +535,22 @@ if __name__ == "__main__":
 
     initial_guess = np.asarray(brs)
     bounds = [[1.e-10, tree.max_distance_from_root()]]*len(brs)
-    # result_normaltips = spo.minimize(lambda x: -computelikelihood_normaltips(x, best_nu, posterior), initial_guess, method='TNC', bounds=bounds)
-    # new_edges = np.asarray(result_normaltips.x)
+    result = spo.minimize(lambda x: -computelikelihood_normaltips(x, best_nu, posterior), initial_guess, method='TNC', bounds=bounds)
+    new_edges = np.asarray(result.x)
+    for node in tree.postorder_node_iter():
+        if node != tree.seed_node:
+            node.edge_length = new_edges[node.index]
+    tree.write(path="PhiloBacter.tree", schema="newick")
+    # tree.write(path="PhiloBacter_normaltips.tree", schema="newick")
+
+    # result = spo.minimize(lambda x: -computelikelihood(x, best_nu, posterior),initial_guess, method='TNC', bounds=bounds)
+    # new_edges = np.asarray(result.x)
     # for node in tree.postorder_node_iter():
     #     if node != tree.seed_node:
     #         node.edge_length = new_edges[node.index]
-    # tree.write(path="PhiloBacter_normaltips.tree", schema="newick")
-
-    result = spo.minimize(lambda x: -computelikelihood(x, best_nu, posterior),initial_guess, method='TNC', bounds=bounds)
-    new_edges = np.asarray(result.x)
-    for node in tree.postorder_node_iter():
-        if node != tree.seed_node:
-            node.edge_length = new_edges[node.index]
-    tree.write(path="PhiloBacter.tree", schema="newick")
+    # tree.write(path="PhiloBacter.tree", schema="newick")
 
 
-
-
-
-    new_edges = np.asarray(result.x)
-    for node in tree.postorder_node_iter():
-        if node != tree.seed_node:
-            node.edge_length = new_edges[node.index]
-
-
-    tree.write(path="PhiloBacter.tree", schema="newick")
 
     phyloHMMData2, rmse_PB2 = recom_resultFig_dm("PhiloBacter.tree", recom_prob, tips_num, threshold,'PB_Recom_two.jpeg', nodes_number)
     phyloHMM_log = phyloHMM_Log(tree, phyloHMMData2, 'PB_Log_two.txt')
@@ -572,14 +561,15 @@ if __name__ == "__main__":
 
 
     if simulation == 1 :
-        clonal_path = args.clonaltreeFile
-        baciSimLog = args.recomlogFile
-        clonal_tree = Tree.get_from_path(clonal_path, 'newick')
+        # clonal_path = args.clonaltreeFile
+        # baciSimLog = args.recomlogFile
+        tns = dendropy.TaxonNamespace()
+        clonal_tree = Tree.get_from_path(clonal_path, 'newick', taxon_namespace=tns)
         set_index(clonal_tree, alignment)
-        clonal_tree.deroot()
-        clonal_tree.update_bipartitions()
-        print(clonal_tree.as_ascii_plot(show_internal_node_labels=True))
-        clonal_tree.resolve_polytomies(update_bipartitions=True)
+        # clonal_tree.deroot()
+        # clonal_tree.update_bipartitions()
+        # print(clonal_tree.as_ascii_plot(show_internal_node_labels=True))
+        # clonal_tree.resolve_polytomies(update_bipartitions=True)
         nodes_number_c = len(clonal_tree.nodes())
         realData,rmse_real = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
 
@@ -590,6 +580,11 @@ if __name__ == "__main__":
 
         rmse_real_philo2 = mean_squared_error(rmse_real,rmse_PB2,squared=False)
         write_value(rmse_real_philo2, 'RMSE_PB_two.csv')
+
+
+        PBtree = Tree.get(path='./PhiloBacter.tree', schema='newick', taxon_namespace=tns)
+        PB_euclidean_distance = treecompare.euclidean_distance(clonal_tree, PBtree , edge_weight_attr="length")
+        write_value(PB_euclidean_distance, 'PB_dist.csv')
 
 
 

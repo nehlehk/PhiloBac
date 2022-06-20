@@ -8,6 +8,7 @@ from dendropy import Tree
 import dendropy
 from sklearn.metrics import mean_squared_error
 from utility import *
+from dendropy.calculate import treecompare
 
 
 
@@ -111,21 +112,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     cfml_log = args.cfmllogFile
-    cfml_tree = args.cfmltreefile
+    CFML_tree = args.cfmltreefile
     genomefile = args.alignmentFile
     clonal_path = args.clonaltreeFile
     baciSimLog = args.recomlogFile
     simulation = args.simulation
 
-    clonal_tree = Tree.get_from_path(clonal_path, 'newick')
+    tns = dendropy.TaxonNamespace()
+    clonal_tree = Tree.get_from_path(clonal_path, 'newick',taxon_namespace=tns)
     nodes_number_c = len(clonal_tree.nodes())
     set_index(clonal_tree)
 
-    cfml_tree = Tree.get_from_path(cfml_tree, 'newick')
-    # cfml_tree.reroot_at_midpoint(update_bipartitions=False)
-    # print(cfml_tree.as_ascii_plot(show_internal_node_labels=True))
+    cfml_tree = Tree.get_from_path(CFML_tree,'newick',taxon_namespace=tns)
     nodes_number = len(cfml_tree.nodes())
-    # print(nodes_number)
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
@@ -152,6 +151,11 @@ if __name__ == "__main__":
         realData , rmse_real = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
         rmse_real_CFML = mean_squared_error(rmse_real, rmse_CFML, squared=False)
         write_value(rmse_real_CFML, 'RMSE_CFML.csv')
+
+
+        CFML_euclidean_distance = treecompare.euclidean_distance(clonal_tree, cfml_tree , edge_weight_attr="length")
+        write_value(CFML_euclidean_distance, 'CFML_dist.csv')
+
 
 
 

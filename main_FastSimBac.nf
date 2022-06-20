@@ -4,20 +4,19 @@ nextflow.enable.dsl = 2
 
 frequencies = Channel.value('0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
-iteration = Channel.value(1..10)
+iteration = Channel.value(1..1)
 
 
 
 
 params.genome = 10
-params.genomelen = '100000'
+params.genomelen = '5000'
 params.recomlen = '500'
 params.recomrate = '0.0005'
 params.nu_sim = '0.08'
-//params.method = 'pb'
 params.hmm_state = '2'
 params.nu_hmm = 0.033
-params.threshold = 0.5
+params.threshold = 0.9
 params.json = "${PWD}/bin/template/GTR_temp_partial.json"
 
 
@@ -114,92 +113,40 @@ process Get_raxml_tree {
     """
 }
 
-
 process PhiloBacteria {
-     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_$filename" }
+     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
      maxForks 1
-     errorStrategy 'ignore'
+     //errorStrategy 'ignore'
 
      input:
-        path Clonaltree
+        tuple val(iteration), path('unroot_Clonaltree')
+        tuple val(iteration), path('Recomlog')
         path Wholegenome
         path MyRaxML
-        val iteration
-     output:
-        path 'Recom_prob_two.h5'    , emit: recom_prob_two   , optional: true
-        path 'PB_Recom_two.jpeg'    , emit: PB_Recom_two     , optional: true
-        path 'PB_nu_two.txt'        , emit: PB_nu_two        , optional: true
-        path 'PB_two.json'          , emit: PB_JSON_two      , optional: true
-
-
-
-
-     """
-       phyloHmm.py -t ${MyRaxML}  -a ${Wholegenome}  -cl ${Clonaltree}  -nu ${params.nu_hmm} -st ${params.hmm_state} -sim ${params.simulation} -js ${params.json}
-     """
-}
-
-process Physher_partial {
-
-     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_$filename" }
-     maxForks 1
-
-     input:
-        path PB_JSON_two
-        val iteration
-        val output
+        val nu_sim
+        val recomlen
+        val recomrate
+        tuple val(iteration), path ('Recomstat')
 
      output:
-         path output , emit: physher_txt
+        path 'Recom_prob_two.h5'                , emit: recom_prob_two   , optional: true
+        path 'PB_nu_two.txt'                    , emit: PB_nu_two        , optional: true
+        path 'RMSE_PB_two.csv'                  , emit :PB_RMSE_two      , optional: true
+        path 'PB_Recom_two.jpeg'                , emit: PB_Recom_two     , optional: true
+        path 'PB_Log_two.txt'                   , emit: PB_Log_two       , optional: true
+        path 'PB_rcount_two.csv'                , emit: PB_rcount_two    , optional: true
+        path 'baci_rcount.csv'                  , emit: Baci_rcount      , optional: true
+        path 'baci_delta.csv'                   , emit: Baci_Delta       , optional: true
+        path 'PB_delta_two.csv'                 , emit: PB_Delta_two     , optional: true
+        path 'PhiloBacter.tree'                 , emit: PB_tree          , optional: true
+        path 'PB_dist.csv'                      , emit: PB_dist          , optional: true
+
 
      """
-       physher  ${PB_JSON_two}   >  ${output}
-     """
-}
-
-
-process Physher_tree {
-     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_$filename"}
-     maxForks 1
-
-     input:
-        path physher_txt
-        val iteration
-        val output
-
-     output:
-         path output , emit: physherTree_two
-
-     """
-       physher_result.py -t ${physher_txt} -o ${output}
-     """
-}
-
-
-process PhiloBac_result {
-     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_$filename" }
-     maxForks 1
-     errorStrategy 'ignore'
-
-     input:
-        path Clonaltree
-        path Wholegenome
-        path recom_prob_two
-        path physherTree_two
-        val iteration
-
-     output:
-        path 'PB_Recom_two.jpeg'    , emit: PB_Recom_two     , optional: true
-        path 'PB_Log_two.txt'       , emit: PB_Log_two       , optional: true
-        path 'PB_rcount_two.csv'    , emit: PB_rcount_two    , optional: true
-        path 'PB_delta_two.csv'     , emit: PB_Delta_two     , optional: true
-
-     """
-       PB_result.py  -cl ${Clonaltree}  -a ${Wholegenome}  -pb ${physherTree_two} -rp ${recom_prob_two} -st ${params.hmm_state} -sim ${params.simulation} -p ${params.threshold}
+       phyloHmm_two.py -t ${MyRaxML}  -a ${Wholegenome}  -cl ${unroot_Clonaltree} -rl ${Recomlog} -nu ${params.nu_hmm} -st ${params.hmm_state} -sim ${params.simulation} -js ${params.json} -rs ${Recomstat}
 
      """
 }
-
 
 process Run_Gubbins {
     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_$filename" }
@@ -386,21 +333,21 @@ if (params.help) {
         Get_raxml_tree(Seq_gen.out.Wholegenome,FastSimBac.out.iteration)
         if (params.method =~ /cfml/) {
             ClonalFrameML(Seq_gen.out.Clonaltree,Seq_gen.out.Wholegenome,Get_raxml_tree.out.MyRaxML,FastSimBac.out.iteration)
+            CollectedDist_CFML = ClonalFrameML.out.Dist_CFML.collectFile(name:"dist_CFML.csv",storeDir:"${PWD}/Summary_FastSimBac", keepHeader:false , sort: false)
         }
         if (params.method =~ /gub/) {
             Gubbins(Seq_gen.out.Wholegenome,Seq_gen.out.Clonaltree,FastSimBac.out.iteration)
+            CollectedDist_Gubb = Gubbins.out.Dist_Gubbins.collectFile(name:"dist_Gubbins.csv",storeDir:"${PWD}/Summary_FastSimBac", keepHeader:false , sort: false)
         }
         if (params.method =~ /pb/) {
             PhiloBacteria(Seq_gen.out.Clonaltree,Seq_gen.out.Wholegenome,Get_raxml_tree.out.MyRaxML,FastSimBac.out.iteration)
-            Physher_partial(PhiloBacteria.out.PB_JSON_two,FastSimBac.out.iteration,'physher_PB.txt')
-            Physher_tree(Physher_partial.out.physher_txt,FastSimBac.out.iteration,'physherTree_PB.newick')
-            PhiloBac_result(Seq_gen.out.Clonaltree,Seq_gen.out.Wholegenome,PhiloBacteria.out.recom_prob_two,Physher_tree.out.physherTree_two,FastSimBac.out.iteration)
+            CollectedDist_PB = PhiloBacteria.out.PB_dist.collectFile(name:"dist_PB.csv",storeDir:"${PWD}/Summary_FastSimBac", keepHeader:false , sort: false)
         }
         if (params.analyse == 2)  {
-            mergeTreeFiles(ClonalFrameML.out.CFMLtree,Gubbins.out.GubbinsRescaletree,Physher_tree.out.physherTree_two,FastSimBac.out.iteration)
-            TreeCmp(Seq_gen.out.Clonaltree,mergeTreeFiles.out.allOtherTrees,FastSimBac.out.iteration)
+            mergeTreeFiles(ClonalFrameML.out.CFMLtree,Gubbins.out.GubbinsRescaletree,PhiloBacteria.out.PB_tree,Sim.out.iteration,Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
+            TreeCmp(Sim.out.unroot_clonaltree,mergeTreeFiles.out.allOtherTrees,Sim.out.iteration,Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
             collectedCMP_tree = TreeCmp.out.Comparison.collectFile(name:"all_cmpTrees.result",storeDir:"${PWD}/Summary_FastSimBac", keepHeader:true , sort: false)
-            TreeCmp_summary(collectedCMP_tree)
+            TreeCmp_summary(collectedCMP_tree,CollectedDist_PB,CollectedDist_Gubb,CollectedDist_CFML)
          }
     }
 }

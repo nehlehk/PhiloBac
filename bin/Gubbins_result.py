@@ -10,6 +10,7 @@ from sklearn.metrics import mean_squared_error
 from statsmodels.genmod.families.links import cloglog
 from utility import *
 from BCBio import GFF
+from dendropy.calculate import treecompare
 
 
 def set_index(tree):
@@ -136,19 +137,19 @@ if __name__ == "__main__":
     gubb_csv = args.gubbcsvfile
     simulation = args.simulation
 
-    clonal_tree = Tree.get_from_path(clonal_path, 'newick')
+    tns = dendropy.TaxonNamespace()
+    clonal_tree = Tree.get_from_path(clonal_path, 'newick',taxon_namespace=tns)
     set_index(clonal_tree)
     nodes_num_c = len(clonal_tree.nodes())
 
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
-    gubbins_tree = Tree.get_from_path(gubb_tree, 'newick')
+    gubbins_tree = Tree.get_from_path(gubb_tree, 'newick', taxon_namespace=tns)
     set_index(gubbins_tree)
     nodes_num_g = len(gubbins_tree.nodes())
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
 
     GubbData,rmse_Gubb,df,Gubb_recom_count = Gubbins_recombination(gubbins_log, gubbins_tree,clonal_tree, nodes_num_g, alignment_len)
-    # print(df)
     Gubbins_resultFig(gubbins_tree, GubbData, tips_num, nodes_num_g, df)
     rescale_gubbtree(gubbins_tree, gubb_csv, alignment_len)
     write_value(Gubb_recom_count,'Gubb_rcount.csv')
@@ -160,6 +161,9 @@ if __name__ == "__main__":
         realData,rmse_real = real_recombination(baciSimLog, clonal_tree, nodes_num_c, alignment_len, tips_num)
         rmse_real_CFML = mean_squared_error(rmse_real, rmse_Gubb, squared=False)
         write_value(rmse_real_CFML, 'RMSE_Gubbins.csv')
+
+        Gubb_euclidean_distance = treecompare.euclidean_distance(clonal_tree, gubbins_tree, edge_weight_attr="length")
+        write_value(Gubb_euclidean_distance, 'Gubb_dist.csv')
 
 
 

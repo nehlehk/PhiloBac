@@ -102,10 +102,8 @@ def recom_on_alignment(recom_num,recom_len,alignment_len,clonal_tree,node_labels
     all_data = {'nodes':nodes , 'start':starts , 'end':ends, 'len':recomlens , 'tree':my_trees , 'nu' : rand_nu , 'edge_len':edge_len}
     df = pd.DataFrame(all_data)
 
-    # print(df)
 
     gf = df.value_counts(['nodes','edge_len','nu']).reset_index(name='count')
-    # print(gf)
     gf.to_csv('./Recombination_count.csv', sep='\t', header=True)
     df[['nodes','start','end' ,'len','nu']].to_csv('./Recom_stat.csv', sep=',', header=True)
 
@@ -141,14 +139,12 @@ def ex_recom_maker(tree ,node ,nu ,taxa):
     #*************************************************************************
     # topology does not change in this case:
     elif  node.is_leaf() and ((co_recom + node.edge_length) < parent.distance_from_tip()) and (parent != tree.seed_node):
-        print(" ((co_recom + node.edge_length) < parent.distance_from_tip()) and (parent != tree.seed_node)")
         parent.edge.length = parent.distance_from_tip() - (co_recom + node.edge_length)
         node.edge.length = node.edge.length + co_recom
         sister = node.sister_nodes()
         sister[0].edge.length = sister[0].edge.length + co_recom
         new_tree = tree
     elif ((co_recom + node.edge_length) < parent.distance_from_tip()) and (parent == tree.seed_node):
-        print("((co_recom + node.edge_length) < parent.distance_from_tip()) and (parent == tree.seed_node)")
         node.edge.length = node.edge.length + co_recom
         sister = node.sister_nodes()
         sister[0].edge.length = sister[0].edge.length + co_recom
@@ -360,7 +356,6 @@ def generate_final_report(df,alignment_len,clonal_tree,tips_num):
         else:
             end_tree = remove_internal_labels(final['final_tree'][id],tips_num)
         tmp = "[" + str(final['len'][id]) + "]" + " " + end_tree
-        # print(tmp)
         myfile.write("%s" % tmp)
 
     myfile.close()
@@ -432,15 +427,8 @@ if __name__ == "__main__":
     tree = Tree.get_from_path(clonaltree, 'newick')
     set_index(tree)
     clonal_tree = tree.as_string(schema="newick")
-    # tree.resolve_polytomies(update_bipartitions=True)
-    print(tree.as_ascii_plot(show_internal_node_labels=True))
+    # print(tree.as_ascii_plot(show_internal_node_labels=True))
     nodes_num = len(tree.nodes())
-
-    # recom_node = tree.find_node_with_label(str(int(10)))
-    # recom_tree, my_nu , new_tree = ex_recom_maker(tree, recom_node, nu_ex, taxa)
-    # print(recom_tree)
-    # print(new_tree.as_ascii_plot(show_internal_node_labels=True))
-
 
     if status == 0:
         r_nodes = tips_num
@@ -457,3 +445,10 @@ if __name__ == "__main__":
 
     output = make_recom_fig(all_data,alignment_len, nodes_num, tips_num, clonal_tree,recom_num)
     final_report = generate_final_report(df, alignment_len, clonal_tree, tips_num)
+
+    tree.deroot()
+    unroot_clonaltree = tree.as_string(schema="newick")
+    unroot_clonaltree = unroot_clonaltree.replace('\n',"")
+    myfile = open('./unroot_Clonaltree.tree', 'w')
+    myfile.write(unroot_clonaltree)
+    myfile.close()
