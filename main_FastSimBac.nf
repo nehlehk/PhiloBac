@@ -14,10 +14,9 @@ params.genomelen = '5000'
 params.recomlen = '500'
 params.recomrate = '0.0005'
 params.nu_sim = '0.08'
-params.hmm_state = '2'
 params.nu_hmm = 0.033
 params.threshold = 0.9
-params.json = "${PWD}/bin/template/GTR_temp_partial.json"
+//params.json = "${PWD}/bin/template/GTR_temp_partial.json"
 
 
 
@@ -119,31 +118,22 @@ process PhiloBacteria {
      //errorStrategy 'ignore'
 
      input:
-        tuple val(iteration), path('unroot_Clonaltree')
-        tuple val(iteration), path('Recomlog')
+        path Clonaltree
         path Wholegenome
         path MyRaxML
         val nu_sim
         val recomlen
         val recomrate
-        tuple val(iteration), path ('Recomstat')
+        val iteration
 
      output:
-        path 'Recom_prob_two.h5'                , emit: recom_prob_two   , optional: true
-        path 'PB_nu_two.txt'                    , emit: PB_nu_two        , optional: true
-        path 'RMSE_PB_two.csv'                  , emit :PB_RMSE_two      , optional: true
-        path 'PB_Recom_two.jpeg'                , emit: PB_Recom_two     , optional: true
-        path 'PB_Log_two.txt'                   , emit: PB_Log_two       , optional: true
-        path 'PB_rcount_two.csv'                , emit: PB_rcount_two    , optional: true
-        path 'baci_rcount.csv'                  , emit: Baci_rcount      , optional: true
-        path 'baci_delta.csv'                   , emit: Baci_Delta       , optional: true
-        path 'PB_delta_two.csv'                 , emit: PB_Delta_two     , optional: true
-        path 'PhiloBacter.tree'                 , emit: PB_tree          , optional: true
-        path 'PB_dist.csv'                      , emit: PB_dist          , optional: true
+        path 'PhiloBacter.tree'     ,emit: PB_tree   ,optional: true
+        path 'PB_dist.csv'          ,emit: PB_dist   ,optional: true
+        path 'PB_WRF_distance.csv'  ,emit: PB_wrf    ,optional: true
 
 
      """
-       phyloHmm_two.py -t ${MyRaxML}  -a ${Wholegenome}  -cl ${unroot_Clonaltree} -rl ${Recomlog} -nu ${params.nu_hmm} -st ${params.hmm_state} -sim ${params.simulation} -js ${params.json} -rs ${Recomstat}
+       phyloHmm_two.py -t ${MyRaxML}  -a ${Wholegenome}  -cl ${Clonaltree}  -sim ${params.simulation}
 
      """
 }
@@ -178,10 +168,9 @@ process Gubbins_result {
         val iteration
 
     output:
-        path 'Gubbins_Recombination.jpeg'    , emit: GubbinsFig
         path 'Gubbinstree_rescale.tree'      , emit: GubbinsRescaletree
-        path 'Gubb_rcount.csv'               , emit: Gubb_rcount, optional: true
-        path 'Gubbins_delta.csv'             , emit: Gubb_delta, optional: true
+        path 'Gubb_dist.csv'                 , emit: Gubb_dist            , optional: true
+        path 'Gubb_WRF_distance.csv'         , emit: Gubb_wrf             , optional: true
 
 
     """
@@ -200,6 +189,8 @@ workflow Gubbins {
             Gubbins_result(clonaltree,genome,Run_Gubbins.out.Gubbinstree,Run_Gubbins.out.GubbinsRecom,Run_Gubbins.out.GubbinsStat,iteration)
         emit:
             GubbinsRescaletree = Gubbins_result.out.GubbinsRescaletree
+            Dist_Gubbins = Gubbins_result.out.Gubb_dist
+            WRF_Gubbins = Gubbins_result.out.Gubb_wrf
 }
 
 
@@ -236,9 +227,8 @@ process CFML_result {
         val iteration
 
      output:
-        path 'CFML_Recombination.jpeg' , emit: CFMLFig
-        path 'CFML_rcount.csv'         , emit: CFML_rcount ,optional: true
-        path 'CFML_delta.csv'          , emit: CFML_delta  ,optional: true
+        path 'CFML_dist.csv'           , emit: CFML_dist   ,optional: true
+        path 'CFML_WRF_distance.csv'   , emit: CFML_wrf    ,optional: true
 
      """
        CFML_result.py  -cl ${Clonaltree}  -a ${Wholegenome} -cfl ${CFML_recom}  -cft ${CFMLtree}  -sim ${params.simulation}
@@ -258,62 +248,34 @@ workflow ClonalFrameML {
             CFML_result(genome,CFML.out.CFML_recom,CFML.out.CFMLtree,clonaltree,iteration)
         emit:
             CFMLtree = CFML.out.CFMLtree
-            Rcount_CFML = CFML_result.out.CFML_rcount
-            Delta_CFML = CFML_result.out.CFML_delta
-}
-
-
-process mergeTreeFiles {
-     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_$filename" }
-     maxForks 1
-
-    input:
-         path CFMLtree
-         path GubbinsRescaletree
-         path physherTree_two
-         val iteration
-
-
-    output:
-         path 'AllOtherTrees.newick' , emit: allOtherTrees
-
-     """
-       mergeFiles.py ${CFMLtree} ${GubbinsRescaletree} ${physherTree_two}   > AllOtherTrees.newick
-     """
+            Dist_CFML = CFML_result.out.CFML_dist
+            WRF_CFML = CFML_result.out.CFML_wrf
 }
 
 
 
-process TreeCmp {
-     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_$filename" }
-     maxForks 1
-
-     input:
-         path Clonaltree
-         path allOtherTrees
-         val iteration
-
-     output:
-         path 'TreeCmpResult.result' , emit: Comparison
-
-     """
-       java -jar /home/nehleh/Documents/0_Research/Software/TreeCmp_v2.0-b76/bin/treeCmp.jar  -r ${Clonaltree}  -i ${allOtherTrees} -d qt pd rf ms um rfw gdu -o TreeCmpResult.result -W
-     """
-}
 
 process TreeCmp_summary {
 
-     publishDir "${PWD}/Summary_FastSimBac", mode: "copy"
+     publishDir "${PWD}/Summary_${params.outDir}", mode: "copy"
      maxForks 1
 
+
      input:
-        path Comparison
+        path PB_dist
+        path Dist_Gubbins
+        path Dist_CFML
+        path PB_wrf
+        path Gubbins_wrf
+        path CFML_wrf
+
+
 
      output:
-        path   'TreeCmp_summary.jpeg' , emit: FigTreeCmp
+        path   'Dist_summary.jpeg'    , emit: FigTreeDist
 
      """
-       cmpTree_plot.py -c all_cmpTrees.result
+       cmpTree_plot.py -p dist_PB.csv  -g dist_Gubbins.csv  -m dist_CFML.csv  -prf wrf_PB.csv  -grf  wrf_Gubbins.csv -mrf wrf_CFML.csv
      """
 }
 
@@ -333,21 +295,21 @@ if (params.help) {
         Get_raxml_tree(Seq_gen.out.Wholegenome,FastSimBac.out.iteration)
         if (params.method =~ /cfml/) {
             ClonalFrameML(Seq_gen.out.Clonaltree,Seq_gen.out.Wholegenome,Get_raxml_tree.out.MyRaxML,FastSimBac.out.iteration)
-            CollectedDist_CFML = ClonalFrameML.out.Dist_CFML.collectFile(name:"dist_CFML.csv",storeDir:"${PWD}/Summary_FastSimBac", keepHeader:false , sort: false)
+            CollectedDist_CFML = ClonalFrameML.out.Dist_CFML.collectFile(name:"dist_CFML.csv",storeDir:"${PWD}/Summary_${params.outDir}", keepHeader:false , sort: false)
+            CollectedWRF_CFML = ClonalFrameML.out.WRF_CFML.collectFile(name:"wrf_CFML.csv",storeDir:"${PWD}/Summary_${params.outDir}", keepHeader:false , sort: false)
         }
         if (params.method =~ /gub/) {
             Gubbins(Seq_gen.out.Wholegenome,Seq_gen.out.Clonaltree,FastSimBac.out.iteration)
-            CollectedDist_Gubb = Gubbins.out.Dist_Gubbins.collectFile(name:"dist_Gubbins.csv",storeDir:"${PWD}/Summary_FastSimBac", keepHeader:false , sort: false)
+            CollectedDist_Gubb = Gubbins.out.Dist_Gubbins.collectFile(name:"dist_Gubbins.csv",storeDir:"${PWD}/Summary_${params.outDir}", keepHeader:false , sort: false)
+            CollectedWRF_Gubb = Gubbins.out.WRF_Gubbins.collectFile(name:"wrf_Gubbins.csv",storeDir:"${PWD}/Summary_${params.outDir}", keepHeader:false , sort: false)
         }
         if (params.method =~ /pb/) {
-            PhiloBacteria(Seq_gen.out.Clonaltree,Seq_gen.out.Wholegenome,Get_raxml_tree.out.MyRaxML,FastSimBac.out.iteration)
-            CollectedDist_PB = PhiloBacteria.out.PB_dist.collectFile(name:"dist_PB.csv",storeDir:"${PWD}/Summary_FastSimBac", keepHeader:false , sort: false)
+            PhiloBacteria(Seq_gen.out.Clonaltree,Seq_gen.out.Wholegenome,Get_raxml_tree.out.MyRaxML,params.nu_sim,params.recomlen,params.recomrate,FastSimBac.out.iteration)
+            CollectedDist_PB = PhiloBacteria.out.PB_dist.collectFile(name:"dist_PB.csv",storeDir:"${PWD}/Summary_${params.outDir}", keepHeader:false , sort: false)
+            CollectedWRF_PB = PhiloBacteria.out.PB_wrf.collectFile(name:"wrf_PB.csv",storeDir:"${PWD}/Summary_${params.outDir}", keepHeader:false , sort: false)
         }
-        if (params.analyse == 2)  {
-            mergeTreeFiles(ClonalFrameML.out.CFMLtree,Gubbins.out.GubbinsRescaletree,PhiloBacteria.out.PB_tree,Sim.out.iteration,Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
-            TreeCmp(Sim.out.unroot_clonaltree,mergeTreeFiles.out.allOtherTrees,Sim.out.iteration,Sim.out.nu_sim,Sim.out.recomlen,Sim.out.recomrate)
-            collectedCMP_tree = TreeCmp.out.Comparison.collectFile(name:"all_cmpTrees.result",storeDir:"${PWD}/Summary_FastSimBac", keepHeader:true , sort: false)
-            TreeCmp_summary(collectedCMP_tree,CollectedDist_PB,CollectedDist_Gubb,CollectedDist_CFML)
+        if (params.analyse == true)  {
+            TreeCmp_summary(CollectedDist_PB,CollectedDist_Gubb,CollectedDist_CFML,CollectedWRF_PB,CollectedWRF_Gubb,CollectedWRF_CFML)
          }
     }
 }

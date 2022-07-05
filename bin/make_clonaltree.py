@@ -2,7 +2,6 @@
 
 
 from utility import make_clonaltree
-from utility import make_clonaltree_unrooted
 import argparse
 
 

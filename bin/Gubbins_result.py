@@ -28,7 +28,7 @@ def set_index(tree):
           node.index = int(node.taxon.label)
           node.label = str(node.index)
 # **********************************************************************************************************************
-def Gubbins_recombination(gubbins_log,gubbins_tree,clonal_tree,nodes_number,alignment_len):
+def Gubbins_recombination(gubbins_log,gubbins_tree,nodes_number,alignment_len,clonal_tree):
     starts = []
     ends = []
     desc = []
@@ -50,6 +50,7 @@ def Gubbins_recombination(gubbins_log,gubbins_tree,clonal_tree,nodes_number,alig
     gubb_handle.close()
 
     all_data = {'nodes': desc, 'start': starts, 'end': ends , 'mrca' :mrca , 'mrca_clonal' :mrca_clonal , 'len':length}
+    # all_data = {'nodes': desc, 'start': starts, 'end': ends, 'mrca': mrca, 'len': length}
     df = pd.DataFrame(all_data)
     # print((df))
     Gubb_recom_count = len(df)
@@ -128,9 +129,6 @@ if __name__ == "__main__":
     parser.add_argument('-sim', "--simulation", type=int, default=1, help='1 for the simulation data and 0 for emprical sequence')
 
     args = parser.parse_args()
-
-    clonal_path = args.clonaltreeFile
-    baciSimLog = args.recomlogFile
     genomefile = args.alignmentFile
     gubbins_log = args.gubblogFile
     gubb_tree = args.gubbtreefile
@@ -138,32 +136,42 @@ if __name__ == "__main__":
     simulation = args.simulation
 
     tns = dendropy.TaxonNamespace()
-    clonal_tree = Tree.get_from_path(clonal_path, 'newick',taxon_namespace=tns)
-    set_index(clonal_tree)
-    nodes_num_c = len(clonal_tree.nodes())
-
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
     gubbins_tree = Tree.get_from_path(gubb_tree, 'newick', taxon_namespace=tns)
     set_index(gubbins_tree)
     nodes_num_g = len(gubbins_tree.nodes())
     tips_num = len(alignment)
     alignment_len = alignment.sequence_size
-
-    GubbData,rmse_Gubb,df,Gubb_recom_count = Gubbins_recombination(gubbins_log, gubbins_tree,clonal_tree, nodes_num_g, alignment_len)
-    Gubbins_resultFig(gubbins_tree, GubbData, tips_num, nodes_num_g, df)
     rescale_gubbtree(gubbins_tree, gubb_csv, alignment_len)
-    write_value(Gubb_recom_count,'Gubb_rcount.csv')
-    df[['len']].to_csv('Gubbins_delta.csv', index=False)
 
 
 
     if simulation == 1:
+        clonal_path = args.clonaltreeFile
+        baciSimLog = args.recomlogFile
+        clonal_tree = Tree.get_from_path(clonal_path, 'newick', taxon_namespace=tns)
+        set_index(clonal_tree)
+        nodes_num_c = len(clonal_tree.nodes())
         realData,rmse_real = real_recombination(baciSimLog, clonal_tree, nodes_num_c, alignment_len, tips_num)
-        rmse_real_CFML = mean_squared_error(rmse_real, rmse_Gubb, squared=False)
-        write_value(rmse_real_CFML, 'RMSE_Gubbins.csv')
-
+        GubbData, rmse_Gubb, df, Gubb_recom_count = Gubbins_recombination(gubbins_log, gubbins_tree, nodes_num_g, alignment_len,clonal_tree)
+        Gubbins_resultFig(gubbins_tree, GubbData, tips_num, nodes_num_g, df)
+        rmse_real_Gubb = mean_squared_error(rmse_real, rmse_Gubb, squared=False)
+        write_value(rmse_real_Gubb, 'RMSE_Gubbins.csv')
+        write_value(Gubb_recom_count, 'Gubb_rcount.csv')
+        df[['len']].to_csv('Gubbins_delta.csv', index=False)
         Gubb_euclidean_distance = treecompare.euclidean_distance(clonal_tree, gubbins_tree, edge_weight_attr="length")
         write_value(Gubb_euclidean_distance, 'Gubb_dist.csv')
+        Gubb_WRF_distance = treecompare.weighted_robinson_foulds_distance(clonal_tree, gubbins_tree , edge_weight_attr="length")
+        write_value(Gubb_WRF_distance, 'Gubb_WRF_distance.csv')
+    elif simulation == 2: # SimBac or FastSimBac
+        clonal_path = args.clonaltreeFile
+        clonal_tree = Tree.get_from_path(clonal_path, 'newick', taxon_namespace=tns)
+        set_index(clonal_tree)
+        nodes_num_c = len(clonal_tree.nodes())
+        Gubb_euclidean_distance = treecompare.euclidean_distance(clonal_tree, gubbins_tree, edge_weight_attr="length")
+        write_value(Gubb_euclidean_distance, 'Gubb_dist.csv')
+        Gubb_WRF_distance = treecompare.weighted_robinson_foulds_distance(clonal_tree, gubbins_tree , edge_weight_attr="length")
+        write_value(Gubb_WRF_distance, 'Gubb_WRF_distance.csv')
 
 
 

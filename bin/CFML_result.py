@@ -70,7 +70,7 @@ def set_to_list(set):
         taxon_label.append(""+str(elm)+"")
     return taxon_label
     # **********************************************************************************************************************
-def CFML_recombination(CFML_recomLog,cfml_tree,clonal_tree,tips_num):
+def CFML_recombination(CFML_recomLog,cfml_tree,tips_num):
     CFMLData = np.zeros((alignment_len, nodes_number))
     rmseData = np.zeros((alignment_len, tips_num))
     df = pd.read_csv(CFML_recomLog, sep='\t', engine='python')
@@ -96,11 +96,11 @@ def CFML_recombination(CFML_recomLog,cfml_tree,clonal_tree,tips_num):
 
 
 if __name__ == "__main__":
-    # clonal_path = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_Clonaltree.tree'
-    # genomefile = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_Wholegenome_1_1.fasta'
-    # baciSimLog = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_BaciSim_Log.txt'
-    # cfml_log = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_CFML.importation_status.txt'
-    # cfml_tree = '/home/nehleh/PhiloBacteria/Results/num_1/num_1_recom_1_CFML.labelled_tree.newick'
+    clonal_path = '/home/nehleh/PhiloBacteria/Result/num_1/num_1_Clonaltree.tree'
+    genomefile = '/home/nehleh/PhiloBacteria/Result/num_1/num_1_nu_0.05_Rlen_500_Rrate_0.01_Wholegenome.fasta'
+    baciSimLog = '/home/nehleh/PhiloBacteria/Result/num_1/num_1_nu_0.05_Rlen_500_Rrate_0.01_BaciSim_Log.txt'
+    cfml_log = '/home/nehleh/PhiloBacteria/Result/num_1/num_1_nu_0.05_Rlen_500_Rrate_0.01_CFML.importation_status.txt'
+    CFML_tree = '/home/nehleh/PhiloBacteria/Result/num_1/num_1_nu_0.05_Rlen_500_Rrate_0.01_CFML.labelled_tree.newick'
 
     parser = argparse.ArgumentParser(description='''You did not specify any parameters.''')
     parser.add_argument('-cl', "--clonaltreeFile", type=str, help='tree')
@@ -111,18 +111,13 @@ if __name__ == "__main__":
     parser.add_argument('-sim', "--simulation", type=int, default= 1 , help='1 for the simulation data and 0 for emprical sequence')
     args = parser.parse_args()
 
-    cfml_log = args.cfmllogFile
-    CFML_tree = args.cfmltreefile
-    genomefile = args.alignmentFile
-    clonal_path = args.clonaltreeFile
-    baciSimLog = args.recomlogFile
+    # CFML_tree = args.cfmltreefile
+    # cfml_log = args.cfmllogFile
+    # genomefile = args.alignmentFile
+    # baciSimLog = args.recomlogFile
     simulation = args.simulation
 
     tns = dendropy.TaxonNamespace()
-    clonal_tree = Tree.get_from_path(clonal_path, 'newick',taxon_namespace=tns)
-    nodes_number_c = len(clonal_tree.nodes())
-    set_index(clonal_tree)
-
     cfml_tree = Tree.get_from_path(CFML_tree,'newick',taxon_namespace=tns)
     nodes_number = len(cfml_tree.nodes())
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile), schema="fasta")
@@ -141,21 +136,33 @@ if __name__ == "__main__":
         my_index.append(node.index)
 
 
-    CFMLData,rmse_CFML,CFML_recom_count,df = CFML_recombination(cfml_log,cfml_tree,clonal_tree,tips_num)
+    CFMLData,rmse_CFML,CFML_recom_count,df = CFML_recombination(cfml_log,cfml_tree,tips_num)
     CFML_resultFig(cfml_tree, CFMLData)
     write_value(CFML_recom_count,'CFML_rcount.csv')
     (df['End']-df['Beg']).to_csv('CFML_delta.csv', index=False , header = ['length'])
 
-
-    if simulation == 1 :
+    cfml_tree.reroot_at_midpoint(update_bipartitions=True)
+    if simulation == 1:
+        # clonal_path = args.clonaltreeFile
+        clonal_tree = Tree.get_from_path(clonal_path, 'newick', taxon_namespace=tns)
+        nodes_number_c = len(clonal_tree.nodes())
+        set_index(clonal_tree)
         realData , rmse_real = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
         rmse_real_CFML = mean_squared_error(rmse_real, rmse_CFML, squared=False)
         write_value(rmse_real_CFML, 'RMSE_CFML.csv')
-
-
+        CFML_euclidean_distance = treecompare.euclidean_distance(clonal_tree, cfml_tree , edge_weight_attr="length")
+        print(CFML_euclidean_distance)
+        write_value(CFML_euclidean_distance, 'CFML_dist.csv')
+        CFML_WRF_distance = treecompare.weighted_robinson_foulds_distance(clonal_tree, cfml_tree , edge_weight_attr="length")
+        write_value(CFML_WRF_distance, 'CFML_WRF_distance.csv')
+        print(CFML_WRF_distance)
+    elif simulation == 2: # SimBac or FastSimBac
+        clonal_path = args.clonaltreeFile
+        clonal_tree = Tree.get_from_path(clonal_path, 'newick', taxon_namespace=tns)
         CFML_euclidean_distance = treecompare.euclidean_distance(clonal_tree, cfml_tree , edge_weight_attr="length")
         write_value(CFML_euclidean_distance, 'CFML_dist.csv')
-
+        CFML_WRF_distance = treecompare.weighted_robinson_foulds_distance(clonal_tree, cfml_tree , edge_weight_attr="length")
+        write_value(CFML_WRF_distance, 'CFML_WRF_distance.csv')
 
 
 

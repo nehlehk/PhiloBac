@@ -12,11 +12,26 @@ import time
 from scipy.optimize import Bounds
 import operator
 import itertools
+import PhiloBacter
 from dendropy.calculate import treecompare
 
 
 
-
+class GTR_model:
+    def __init__(self, rates, pi):
+        self.rates = rates
+        self.pi = pi
+    #     ========================================================================
+    def get_pi(self):
+        return self.pi
+    #     ========================================================================
+    def p_matrix(self , br_length):
+        p = PhiloBacter.p_matrix(self.rates,self.pi,br_length)
+        return p
+    def p_t(self , br_length):
+        p = PhiloBacter.p_t(self.rates,self.pi,br_length)
+        return p
+#***********************************************************************************************************************
 def compute_logprob_phylo_bw(X,recom_trees,model,tip_partial,alignment_len):
     n, dim = X.shape
     result = np.zeros((n, len(recom_trees)))
@@ -97,7 +112,7 @@ def update_mixture_partial_PSE(column,node,tipdata,posterior_recom,nu):
 # **********************************************************************************************************************
 def my_best_nu(X,tree_path,clonal,target_node,tipdata,p_trans,p_start):
     def fn(nu):
-        temptree = Tree.get_from_path(tree_path, 'newick', rooting='force-rooted')
+        temptree = Tree.get_from_path(tree_path, 'newick')
         set_index(temptree, alignment)
         r_trees = recom_maker(temptree, target_node.index, nu)
         emission = compute_logprob_phylo_bw(X, [clonal, r_trees], GTR_sample, tipdata, alignment_len)
@@ -115,9 +130,9 @@ def write_best_nu(best_nu,outputname):
 
 # **********************************************************************************************************************
 def baumwelch_parallel(target_node):
-    print(target_node)
+    # print(target_node)
     recombination_trees = []
-    clonaltree = Tree.get_from_path(tree_path,'newick',rooting='force-rooted')
+    clonaltree = Tree.get_from_path(tree_path,'newick')
     set_index(clonaltree, alignment)
     my_nu = np.arange(0.0001, 0.1, 0.01)
     recombination_trees.append(clonaltree.as_string(schema="newick"))
@@ -142,11 +157,47 @@ def baumwelch_parallel(target_node):
     else:
         delta = -1/np.log(trans[1][1])
     # print("delta:", delta)
+
+    return p,target_node,nu
+# **********************************************************************************************************************
+def baumwelch_parallel_2(target_node):
+    # print(target_node)
+    recombination_trees = []
+    clonaltree = Tree.get_from_path(tree_path,'newick')
+    set_index(clonaltree, alignment)
+    my_nu = np.arange(0.0001, 0.1, 0.01)
+    recombination_trees.append(clonaltree.as_string(schema="newick"))
+    X = partial[:, target_node.index, :]
+    nu = my_best_nu(X,tree_path,recombination_trees[0],target_node,tipdata,p_trans,p_start)
+    # print("nu:",nu)
+    recombination_trees.append(recom_maker(clonaltree, target_node.index, nu))
+    emission = PhiloBacter.compute_logprob_phylo_bw(X, recombination_trees, GTR_sample, tipdata, alignment_len,alignment,tips_num)
+    best_trans , p = PhiloBacter.baum_welch(X,p_trans,emission,p_start,n_iter=1)
+    p = p.T
+    # print("best_trans:",best_trans)
+    # hidden = viterbi(X,best_trans,emission,p_start)
+    p_trans_nu0 = np.array([[1, 0],[1, 0]])
+    if nu <= my_nu[0]: # if the best nu is smaller than a threshod, we consider there is no recombiantion on that branch
+        trans = p_trans_nu0
+    else:
+        trans = best_trans
+    R_over_theta = -(np.log(trans[0][0]) - target_node.edge_length)
+
+    if trans[1][1] == 0:
+        delta = 0
+    else:
+        delta = -1/np.log(trans[1][1])
+    # print("delta:", delta)
+
     return p,target_node,nu
 # **********************************************************************************************************************
 def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
     mytree = []
-    tipdata = set_tips_partial(column,tips_num)
+
+    tipdata = set_tips_partial(column, tips_num)
+
+
+    # tipdata = set_tips_partial(column,tips_num)
     posterior1 = [None] * (nodes_number-1)
     t_node = []
     best_nu = [None] * (nodes_number-1)
@@ -157,9 +208,9 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
     # each node play the role of target nodes
     for id_tree, target_node in enumerate(tree.postorder_node_iter()):
         if target_node != tree.seed_node:
-            print(target_node)
+            # print(target_node)
             recombination_trees = []
-            mytree.append(Tree.get_from_path(tree_path, 'newick', rooting='force-rooted'))
+            mytree.append(Tree.get_from_path(tree_path, 'newick'))
             set_index(mytree[id_tree],alignment)
             #     step 1 --- make hmm input
             #  take the partials of the target node as input of hmm
@@ -198,6 +249,67 @@ def phylohmm_baumwelch(tree,alignment_len,column,nu,p_start,p_trans,tips_num):
             # Update tip partials based on the posterior probability
             if target_node.is_leaf():
                 update_mixture_partial_PSE(column, target_node,tipdata,p[:, 1],nu)
+
+    np.set_printoptions(threshold=np.inf)
+    myposterior1 = np.array(posterior1, dtype='double')
+    recom_prob = pd.DataFrame({'posterior_rec': pd.Series(list(myposterior1))})
+    write_best_nu(best_nu,'PB_nu_two.txt')
+
+    return tipdata,recom_prob,myposterior1,best_nu
+# **********************************************************************************************************************
+def phylohmm_baumwelch_2(tree,alignment_len,column,p_start,p_trans,tips_num):
+    mytree = []
+    tipdata = PhiloBacter.set_tips_partial(column,tips_num,alignment_len)
+    posterior1 = [None] * (nodes_number-1)
+    best_nu = [None] * (nodes_number-1)
+    # make per_site likelihood and per_site partials for all nodes including tips and internal nodes
+    persite_ll, partial = PhiloBacter.computelikelihood_mixture(tree,GTR_sample, alignment_len, tips_num,tipdata)
+
+    # each node play the role of target nodes
+    for id_tree, target_node in enumerate(tree.postorder_node_iter()):
+        if target_node != tree.seed_node:
+            # print(target_node)
+            recombination_trees = []
+            mytree.append(Tree.get_from_path(tree_path, 'newick'))
+            set_index(mytree[id_tree],alignment)
+            #     step 1 --- make hmm input
+            #  take the partials of the target node as input of hmm
+            X = partial[:,target_node.index,:]
+
+
+            #     step 2 --- make recombination tree
+            my_nu = np.arange(0.0001, 0.1, 0.01)
+            recombination_trees.append(mytree[id_tree].as_string(schema="newick"))
+            # find the best nu for target branch based on the maximizing score value of hmm
+            nu = my_best_nu(X,tree_path,recombination_trees[0],target_node,tipdata,p_trans,p_start)
+            best_nu[target_node.index] = nu
+            # print("best_nu:",nu)
+
+            # make recombination tree for target node using best nu
+            recombination_trees.append(recom_maker(mytree[id_tree],target_node.index,nu))
+            emission = PhiloBacter.compute_logprob_phylo_bw(X, recombination_trees, GTR_sample, tipdata, alignment_len,alignment,tips_num)
+            best_trans , p = PhiloBacter.baum_welch(X, p_trans, emission, p_start, n_iter=1)
+            p = p.T
+            p_trans_nu0 = np.array([[1, 0],
+                                    [1, 0]])
+            if nu <= my_nu[0]: # if the best nu is smaller than a threshold, we consider there is no recombination on that branch
+                trans = p_trans_nu0
+            else:
+                trans = best_trans
+
+            R_over_theta = -(np.log(trans[0][0]) - target_node.edge_length)
+            # print("R_over_theta:",R_over_theta)
+            if trans[1][1] == 0:
+                delta = 0
+            else:
+                delta = -1/np.log(trans[1][1])
+            # print("delta:",delta)
+
+
+            posterior1[target_node.index] = p[:, 1]
+            # Update tip partials based on the posterior probability
+            if target_node.is_leaf():
+                PhiloBacter.update_mixture_partial_PSE(column, target_node,tipdata,p[:, 1],nu,alignment_len)
 
     np.set_printoptions(threshold=np.inf)
     myposterior1 = np.array(posterior1, dtype='double')
@@ -451,25 +563,26 @@ def computelikelihood_normaltips(brs, nu, posterior):
                 partial[:, node.index, :] *= np.squeeze(P_mixture @ np.expand_dims(partial[:, children[i].index, :].T, -1), -1).T
 
     persite_ll = np.log(GTR_sample.get_pi() @ partial[:, tree.seed_node.index, :])
+
     return persite_ll.sum()
 # **********************************************************************************************************************
 
 
 if __name__ == "__main__":
 
-    # path = '/home/nehleh/Desktop/sisters/mutiple_sisters/'
+    # path = '/home/nehleh/Desktop/sisters/mutiple_sisters'
     # tree_path = path+'/num_1_RAxML_bestTree.tree'
     # genomefile = path+'/num_1_wholegenome_1.fasta'
     # baciSimLog = path+'/BaciSim_Log.txt'
     # clonal_path = path+'/clonaltree.tree'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
-    path = '/home/nehleh/PhiloBacteria/Results/num_1'
-    tree_path = path+'/num_1_nu_0.05_Rlen_500_Rrate_0.03_RAxML_bestTree.tree'
-    clonal_path = path+'/num_1_nu_0.05_Rlen_500_Rrate_0.03_unroot_Clonaltree.tree'
-    genomefile = path+'/num_1_nu_0.05_Rlen_500_Rrate_0.03_Wholegenome.fasta'
-    baciSimLog = path+'/num_1_nu_0.05_Rlen_500_Rrate_0.03_BaciSim_Log.txt'
-    baciSimStat = path +'/num_1_nu_0.05_Rlen_500_Rrate_0.03_Recom_stat.csv'
+    path = '/home/nehleh/PhiloBacteria/Result/num_1'
+    tree_path = path+'/num_1_nu_0.05_Rlen_500_Rrate_0.01_RAxML_bestTree.tree'
+    clonal_path = path+'/num_1_Clonaltree.tree'
+    genomefile = path+'/num_1_nu_0.05_Rlen_500_Rrate_0.01_Wholegenome.fasta'
+    baciSimLog = path+'/num_1_nu_0.05_Rlen_500_Rrate_0.01_BaciSim_Log.txt'
+    baciSimStat = path +'/num_1_nu_0.05_Rlen_500_Rrate_0.01_Recom_stat.csv'
     json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
 
@@ -478,13 +591,9 @@ if __name__ == "__main__":
     parser.add_argument('-a', "--alignmentFile", type=str, help='fasta file')
     parser.add_argument('-cl', "--clonaltreeFile", type=str, help='clonaltreeFile tree from BaciSim')
     parser.add_argument('-rl', "--recomlogFile", type=str, help='BaciSim recombination log file')
-    parser.add_argument('-nu', "--nuHmm", type=float,default=0.033,help='nuHmm')
     parser.add_argument('-p', "--threshold", type=float, default=0.5, help='threshold')
     parser.add_argument('-f', "--frequencies", type=list, default= [0.2184,0.2606,0.3265,0.1946],help='frequencies')
     parser.add_argument('-r', "--rates", type=list, default= [0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ], help='rates')
-    parser.add_argument('-s', "--startProb", type=list, default= [0.99, 0.01],help='frequencies')
-    parser.add_argument('-m', "--transmat", type=list, default= [[0.999, 0.001],  [0.001, 0.999]], help='rates')
-    parser.add_argument('-st', "--status", type=str,  default='2', help='2 for the two states hmm and 8 for eight states of hmm , 2,8 for both ')
     parser.add_argument('-js', "--jsonFile", type=str, default='/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json', help='jsonFile')
     parser.add_argument('-sim', "--simulation", type=int, default=1, help='1 for the simulation data and 0 for emprical sequence')
     parser.add_argument('-rs', "--recomstat", type=str, help='recomstat')
@@ -492,19 +601,14 @@ if __name__ == "__main__":
 
     # tree_path = args.raxmltree
     # genomefile = args.alignmentFile
-    # json_path = args.jsonFile
-    # baciSimStat = args.recomstat
-    pi = args.frequencies
-    rates = args.rates
-    nu = args.nuHmm
-    p_start = args.startProb
-    p_trans = args.transmat
+    pi = np.asarray(args.frequencies)
+    rates = np.asarray(args.rates)
     threshold = args.threshold
     simulation = args.simulation
-
+    # json_path = args.jsonFile
 
     # ============================================ setting parameters ==================================================
-    tree = Tree.get_from_path(tree_path,schema='newick',rooting='force-rooted')
+    tree = Tree.get_from_path(tree_path,schema='newick')
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile),schema="fasta")
     nodes_number = len(tree.nodes())
     tips_num = len(alignment)
@@ -512,10 +616,8 @@ if __name__ == "__main__":
     GTR_sample = GTR_model(rates, pi)
     column = get_DNA_fromAlignment(alignment)
     set_index(tree, alignment)
-    # tree.reroot_at_midpoint(update_bipartitions=True)
-    print(tree.as_ascii_plot(show_internal_node_labels=True))
+    # print(tree.as_ascii_plot(show_internal_node_labels=True))
 
-    print(nodes_number)
 
     p_start = np.array([0.9, 0.1])
     p_trans = np.array([[1-(1/alignment_len), 1/alignment_len],
@@ -527,29 +629,55 @@ if __name__ == "__main__":
         brs[node.index] = node.edge_length
     brs.pop()
 
-    # doing hmm
-    start = time.time()
-    tipdata, recom_prob, posterior, best_nu = phylohmm_baumwelch(tree, alignment_len, column, nu, p_start, p_trans, tips_num)
+    tipdata, recom_prob, posterior, best_nu = phylohmm_baumwelch_2(tree, alignment_len,column,p_start,p_trans, tips_num)
+
+    # # start = time.time()
+    # posterior_rec = []
+    # nodes = []
+    # tnodes = []
+    # best_nu = []
+    # np.set_printoptions(threshold=np.inf)
+    # tipdata = PhiloBacter.set_tips_partial(column, tips_num,alignment_len)
+    # persite_ll, partial = PhiloBacter.computelikelihood_mixture(tree,GTR_sample,alignment_len,tips_num,tipdata)
+    # posterior_rec = [None] * (nodes_number - 1)
+    # best_nu = [None] * (nodes_number - 1)
+    # for node in tree.postorder_node_iter():
+    #     if node != tree.seed_node:
+    #         nodes.append(node)
+    # with concurrent.futures.ProcessPoolExecutor() as executor:
+    #     results = [executor.submit(baumwelch_parallel_2, target_node) for target_node in nodes]
+    #     for res in concurrent.futures.as_completed(results):
+    #         p = res.result()[0]
+    #         target_node = res.result()[1]
+    #         nu = res.result()[2]
+    #         posterior_rec[target_node.index] = np.array(p[:, 1])
+    #         tnodes.append(target_node.index)
+    #         best_nu[target_node.index] = nu
+    #         if target_node.is_leaf():
+    #             PhiloBacter.update_mixture_partial_PSE(column, target_node, tipdata, p[:, 1], nu,alignment_len)
+    #
+    #     recom_prob = pd.DataFrame({'recom_nodes': tnodes, 'posterior_rec': pd.Series(list(posterior_rec))})
+    # posterior = np.array(posterior_rec, dtype='double')
+    # write_best_nu(best_nu, 'PB_nu_two.txt')
+    # # end = time.time()
+    # # print("time phylohmm parallel", end - start)
 
 
 
+
+
+    # start = time.time()
+    tipdata = PhiloBacter.set_tips_partial(column,tips_num,alignment_len)
     initial_guess = np.asarray(brs)
     bounds = [[1.e-10, tree.max_distance_from_root()]]*len(brs)
-    result = spo.minimize(lambda x: -computelikelihood_normaltips(x, best_nu, posterior), initial_guess, method='TNC', bounds=bounds)
+    result = spo.minimize(lambda x: -PhiloBacter.computelikelihood_normaltips(tree,GTR_sample,x,best_nu,posterior,alignment_len,tips_num,nodes_number,tipdata), initial_guess, method='TNC', bounds=bounds)
     new_edges = np.asarray(result.x)
     for node in tree.postorder_node_iter():
         if node != tree.seed_node:
             node.edge_length = new_edges[node.index]
     tree.write(path="PhiloBacter.tree", schema="newick")
-    # tree.write(path="PhiloBacter_normaltips.tree", schema="newick")
-
-    # result = spo.minimize(lambda x: -computelikelihood(x, best_nu, posterior),initial_guess, method='TNC', bounds=bounds)
-    # new_edges = np.asarray(result.x)
-    # for node in tree.postorder_node_iter():
-    #     if node != tree.seed_node:
-    #         node.edge_length = new_edges[node.index]
-    # tree.write(path="PhiloBacter.tree", schema="newick")
-
+    # end = time.time()
+    # print("cython_LL:",end - start)
 
 
     phyloHMMData2, rmse_PB2 = recom_resultFig_dm("PhiloBacter.tree", recom_prob, tips_num, threshold,'PB_Recom_two.jpeg', nodes_number)
@@ -560,93 +688,55 @@ if __name__ == "__main__":
     mean_dalta = phyloHMM_log[['len']].mean()
 
 
-    if simulation == 1 :
-        # clonal_path = args.clonaltreeFile
-        # baciSimLog = args.recomlogFile
+    # if simulation == 1 :
+    #     # clonal_path = args.clonaltreeFile
+    #     # baciSimLog = args.recomlogFile
+    #     # baciSimStat = args.recomstat
+    #     clonal_tree = Tree.get_from_path(clonal_path, 'newick', taxon_namespace=tns)
+    #     set_index(clonal_tree, alignment)
+    #     nodes_number_c = len(clonal_tree.nodes())
+    #     realData,rmse_real = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
+    #     recom_stat = pd.read_csv(open(baciSimStat, "r"), sep=',')
+    #     num_recom_real = len(recom_stat)
+    #     write_value(len(recom_stat), 'baci_rcount.csv')
+    #     recom_stat[['len']].to_csv('baci_delta.csv' , index=False)
+    #     rmse_real_philo2 = mean_squared_error(rmse_real,rmse_PB2,squared=False)
+    #     write_value(rmse_real_philo2, 'RMSE_PB_two.csv')
+    #     PBtree = Tree.get(path='./PhiloBacter.tree', schema='newick',taxon_namespace=tns)
+    #     PBtree.reroot_at_midpoint(update_bipartitions=True)
+    #     PB_euclidean_distance = treecompare.euclidean_distance(clonal_tree,PBtree,edge_weight_attr="length")
+    #     write_value(PB_euclidean_distance, 'PB_dist.csv')
+    #     PB_WRF_distance = treecompare.weighted_robinson_foulds_distance(clonal_tree,PBtree,edge_weight_attr="length")
+    #     write_value(PB_WRF_distance, 'PB_WRF_distance.csv')
+    # elif simulation == 2 : # SimBac or FastSimBac
+    #     # clonal_path = args.clonaltreeFile
+    #     clonal_tree = Tree.get_from_path(clonal_path,'newick',taxon_namespace=tns)
+    #     PBtree = Tree.get(path='./PhiloBacter.tree',schema='newick',taxon_namespace=tns)
+    #     PBtree.reroot_at_midpoint(update_bipartitions=True)
+    #     PB_euclidean_distance = treecompare.euclidean_distance(clonal_tree,PBtree,edge_weight_attr="length")
+    #     write_value(PB_euclidean_distance, 'PB_dist.csv')
+    #     PB_WRF_distance = treecompare.weighted_robinson_foulds_distance(clonal_tree,PBtree,edge_weight_attr="length")
+    #     write_value(PB_WRF_distance, 'PB_WRF_distance.csv')
+
+    if simulation > 0:
         tns = dendropy.TaxonNamespace()
+        clonal_path = args.clonaltreeFile
         clonal_tree = Tree.get_from_path(clonal_path, 'newick', taxon_namespace=tns)
         set_index(clonal_tree, alignment)
-        # clonal_tree.deroot()
-        # clonal_tree.update_bipartitions()
-        # print(clonal_tree.as_ascii_plot(show_internal_node_labels=True))
-        # clonal_tree.resolve_polytomies(update_bipartitions=True)
+        PBtree = Tree.get(path='./PhiloBacter.tree',schema='newick',taxon_namespace=tns)
+        PBtree.reroot_at_midpoint(update_bipartitions=True)
+        PB_euclidean_distance = treecompare.euclidean_distance(clonal_tree,PBtree,edge_weight_attr="length")
+        write_value(PB_euclidean_distance, 'PB_dist.csv')
+        PB_WRF_distance = treecompare.weighted_robinson_foulds_distance(clonal_tree,PBtree,edge_weight_attr="length")
+        write_value(PB_WRF_distance, 'PB_WRF_distance.csv')
+    if simulation == 1 :
+        baciSimLog = args.recomlogFile
+        baciSimStat = args.recomstat
         nodes_number_c = len(clonal_tree.nodes())
-        realData,rmse_real = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
-
+        realData, rmse_real = real_recombination(baciSimLog, clonal_tree, nodes_number_c, alignment_len, tips_num)
         recom_stat = pd.read_csv(open(baciSimStat, "r"), sep=',')
         num_recom_real = len(recom_stat)
         write_value(len(recom_stat), 'baci_rcount.csv')
-        recom_stat[['len']].to_csv('baci_delta.csv' , index=False)
-
-        rmse_real_philo2 = mean_squared_error(rmse_real,rmse_PB2,squared=False)
+        recom_stat[['len']].to_csv('baci_delta.csv', index=False)
+        rmse_real_philo2 = mean_squared_error(rmse_real, rmse_PB2, squared=False)
         write_value(rmse_real_philo2, 'RMSE_PB_two.csv')
-
-
-        PBtree = Tree.get(path='./PhiloBacter.tree', schema='newick', taxon_namespace=tns)
-        PB_euclidean_distance = treecompare.euclidean_distance(clonal_tree, PBtree , edge_weight_attr="length")
-        write_value(PB_euclidean_distance, 'PB_dist.csv')
-
-
-
-
-
-
-
-
-    # posterior_rec = []
-    # nodes = []
-    # tnodes= []
-    # best_nu = []
-    # np.set_printoptions(threshold=np.inf)
-    # tipdata = set_tips_partial(column, tips_num)
-    # # persite_ll, partial = computelikelihood_mixture(tree, alignment_len, tipdata, GTR_sample, tips_num)
-    #
-    # for node in tree.postorder_node_iter():
-    #     if node != tree.seed_node:
-    #         nodes.append(node)
-    # with concurrent.futures.ProcessPoolExecutor() as executor:
-    #     results = [executor.submit(baumwelch_parallel, target_node) for target_node in nodes]
-    #     for res in concurrent.futures.as_completed(results):
-    #         p = res.result()[0]
-    #         target_node = res.result()[1]
-    #         nu = res.result()[2]
-    #         posterior_rec.append(np.array(p[:, 1], dtype='double')) # posterior probality for recombination tree
-    #         tnodes.append(target_node.index)
-    #         best_nu.append([target_node.index, nu])
-    #         if target_node.is_leaf():
-    #             update_mixture_partial_PSE(column,target_node,tipdata,p[:, 1],nu)
-
-
-
-    # recom_prob = pd.DataFrame( {'recom_nodes': tnodes,'posterior_rec': pd.Series(list(posterior_rec))})
-    # write_best_nu(best_nu, 'PB_nu_two.txt')
-    # end = time.time()
-    # print(recom_prob)
-    # print("time phylohmm", end - start)
-
-
-    # start = time.time()
-    # my_tipdata = tipdata.transpose(1, 0, 2)
-    # taxon = []
-    # seq = []
-    # def partial_dic(i):
-    #     taxon = str(give_taxon(tree, i))
-    #     seq = np.array2string(my_tipdata[i], separator=',').replace("[", "").replace("]", "").replace("\n","").replace(" ","")
-    #     return taxon,seq
-    #
-    # with concurrent.futures.ProcessPoolExecutor() as executor:
-    #     f1 = [executor.submit(partial_dic, i) for i in range(my_tipdata.shape[0])]
-    #     for res in concurrent.futures.as_completed(f1):
-    #         taxon.append(res.result()[0])
-    #         seq.append(res.result()[1])
-    # partial_dict = dict(zip(taxon,seq))
-    # make_physher_json_partial_1(partial_dict, tree, json_path, 'PB_two.json')
-    # end = time.time()
-    # print("time_make_physher_json_partial:", end - start)
-    #
-    #
-    # start = time.time()
-    # #  write updated tip partail to make recombination result based on that
-    # recom_prob.to_hdf('Recom_prob_two.h5',key='recom_prob',mode='w')
-    # end = time.time()
-    # print("time recom_prob.to_hdf",end - start)
