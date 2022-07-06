@@ -4,19 +4,18 @@ nextflow.enable.dsl = 2
 
 frequencies = Channel.value('0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
-iteration = Channel.value(1..1)
+iteration = Channel.value(1..3)
 
 
 
 
 params.genome = 10
-params.genomelen = '5000'
+params.genomelen = '3000'
 params.recomlen = '500'
 params.recomrate = '0.0005'
 params.nu_sim = '0.08'
 params.nu_hmm = 0.033
 params.threshold = 0.9
-//params.json = "${PWD}/bin/template/GTR_temp_partial.json"
 
 
 
@@ -39,7 +38,7 @@ def helpMessage() {
       --nu_sim               value >0 (default 0.05)                nu value using in simulated data
       --best                 true or false (default)                show the best answer
       --method               pb,cfml,gub (default pb)               Recombination detection methods(PhiloBacteria,ClonalFrameML,Gubbins)
-      --analyse              value: 0,1,2 (default 2)               0:recombination detection, 1: corrected phylogeny, 2: both 0 and 1
+      --analyse              value: true or false
   Options for detecting recombination in empirical sequence alignments:
     Mandatory arguments:
       --mode emp
@@ -133,7 +132,7 @@ process PhiloBacteria {
 
 
      """
-       phyloHmm_two.py -t ${MyRaxML}  -a ${Wholegenome}  -cl ${Clonaltree}  -sim ${params.simulation}
+       phyloHmm.py -t ${MyRaxML}  -a ${Wholegenome}  -cl ${Clonaltree}  -sim ${params.simulation}
 
      """
 }

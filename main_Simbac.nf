@@ -4,17 +4,16 @@ nextflow.enable.dsl = 2
 
 frequencies = Channel.value('0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
-iteration = Channel.value(1..1)
+iteration = Channel.value(1..3)
 
 
 
 
 params.genome = 10
-params.genomelen = '2000'
+params.genomelen = '3000'
 params.recomlen = '500'
 params.recomrate = '0.0005'
 params.nu_sim = '0.05'
-params.json = "${PWD}/bin/template/GTR_temp_partial.json"
 params.outDir = 'SimBacResult'
 
 
@@ -43,7 +42,7 @@ def helpMessage() {
       --mode emp
       --seq                  fasta file                             Path to input .fasta file
       --method               pb,cfml,gub (default pb)               Recombination detection methods(PhiloBacteria,ClonalFrameML,Gubbins)
-      --analyse              value: 0,1,2 (default 2)               0:recombination detection, 1: corrected phylogeny, 2: both 0 and 1
+      --analyse              true or false
 
   Output Options:
       --outDir               directory                              Output directory to place final output
@@ -111,7 +110,7 @@ process PhiloBacteria {
 
 
      """
-       phyloHmm_two.py -t ${MyRaxML}  -a ${SimBac_seq}  -cl ${SimBacClonal}  -sim ${params.simulation}
+       phyloHmm.py -t ${MyRaxML}  -a ${SimBac_seq}  -cl ${SimBacClonal}  -sim ${params.simulation}
 
      """
 }
@@ -141,7 +140,6 @@ process CFML {
 process CFML_result {
      publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
      maxForks 1
-//      errorStrategy 'ignore'
 
      input:
         tuple val(iteration) , path("SimBac_seq")

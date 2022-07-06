@@ -5,25 +5,20 @@ nextflow.enable.dsl = 2
 
 params.dummy_file = "/home/nehleh/assets/NO_FILE"
 dummy_file = file(params.dummy_file)
-params.test_file= "/home/nehleh/assets/RMSE_Gubbins.csv"
-c_file = file(params.test_file)
 
 
 
 
 frequencies = Channel.value('0.2184,0.2606,0.3265,0.1946' )
 rates =  Channel.value('0.975070 ,4.088451 ,0.991465 ,0.640018 ,3.840919 ,1')
-iteration = Channel.value(1..1)
+iteration = Channel.value(1..3)
 nu_sim = Channel.of(0.05) //0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1
 recomlen = Channel.of(500) //100,200,300,400,500,1000,2000,3000,4000,5000
 recomrate = Channel.of(0.01) //0.005,0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1
 
 
-//params.xml = "${PWD}/bin/template/GTR_template.xml"
-//params.json = "${PWD}/bin/template/GTR_temp_partial.json"
-
 params.genome = 10
-params.genomelen = '5000'
+params.genomelen = '3000'
 params.tMRCA = '0.01'
 params.analyse = false
 params.sim_stat = 1 //0 is just leaves, 1 is for both internal nodes and leaves and 2 is just internal nodes
@@ -57,7 +52,6 @@ def helpMessage() {
       --mode emp
       --seq                  fasta file                             Path to input .fasta file
       --method               pb,cfml,gub (default pb)               Recombination detection methods(PhiloBacteria,ClonalFrameML,Gubbins)
-      --analyse              true or false (default false)
 
   Output Options:
       --outDir               directory                              Output directory to place final output
@@ -71,7 +65,6 @@ def helpMessage() {
 process MakeClonalTree {
      publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_$filename" }
      maxForks 1
-     //errorStrategy 'ignore'
 
      input:
          each iteration
@@ -158,11 +151,9 @@ process Get_raxml_tree {
 process PhiloBacteria {
      publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
      maxForks 1
-     //errorStrategy 'ignore'
 
      input:
         path Clonaltree
-        //tuple val(iteration), path('unroot_Clonaltree')
         tuple val(iteration), path('Recomlog')
         path Wholegenome
         path MyRaxML
@@ -186,40 +177,7 @@ process PhiloBacteria {
         path 'PB_WRF_distance.csv'              , emit: PB_wrf           , optional: true
 
      """
-       phyloHmm_two.py -t ${MyRaxML}  -a ${Wholegenome}  -cl ${Clonaltree} -rl ${Recomlog} -sim ${params.simulation}  -rs ${Recomstat}
-
-     """
-}
-
-
-process PhiloBac_result {
-     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
-     maxForks 1
-     //errorStrategy 'ignore'
-
-     input:
-        path Clonaltree
-        tuple val(iteration), path('Recomlog')
-        path Wholegenome
-        path recom_prob_two
-        path physherTree_two
-        tuple val(iteration), path ('Recomstat')
-        val nu_sim
-        val recomlen
-        val recomrate
-
-
-     output:
-        path 'RMSE_PB_two.csv'      , emit :PB_RMSE_two      , optional: true
-        path 'PB_Recom_two.jpeg'    , emit: PB_Recom_two     , optional: true
-        path 'PB_Log_two.txt'       , emit: PB_Log_two       , optional: true
-        path 'PB_rcount_two.csv'    , emit: PB_rcount_two    , optional: true
-        path 'baci_rcount.csv'      , emit: Baci_rcount      , optional: true
-        path 'baci_delta.csv'       , emit: Baci_Delta       , optional: true
-        path 'PB_delta_two.csv'     , emit: PB_Delta_two     , optional: true
-
-     """
-       PB_result_two.py  -cl ${Clonaltree}  -a ${Wholegenome}  -rl ${Recomlog}  -pb ${physherTree_two} -rp ${recom_prob_two}  -sim ${params.simulation} -p ${params.threshold} -rs ${Recomstat}
+       phyloHmm.py -t ${MyRaxML}  -a ${Wholegenome}  -cl ${Clonaltree} -rl ${Recomlog} -sim ${params.simulation}  -rs ${Recomstat}
 
      """
 }
@@ -229,7 +187,6 @@ process PhiloBac_result {
 process CFML {
    publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
    maxForks 1
-//    errorStrategy 'ignore'
 
      input:
         path Wholegenome
@@ -254,14 +211,12 @@ process CFML {
 process CFML_result {
      publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
      maxForks 1
-//      errorStrategy 'ignore'
 
      input:
         path Wholegenome
         path CFML_recom
         path CFMLtree
         tuple val(iteration), path('Recomlog')
-        //tuple val(iteration), path('unroot_Clonaltree')
         path Clonaltree
         val iteration
         val nu_sim
@@ -294,7 +249,6 @@ process Run_Gubbins {
         val recomrate
 
     output:
-//         path "gubbins.final_tree.tre" , emit: Gubbinstree
         path "gubbins.node_labelled.final_tree.tre" , emit: Gubbinstree
         path "gubbins.recombination_predictions.gff" , emit: GubbinsRecom
         path "gubbins.per_branch_statistics.csv" , emit: GubbinsStat
@@ -334,72 +288,6 @@ process Gubbins_result {
     """
 }
 
-
-
-process NexusToNewick {
-     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
-     maxForks 1
-
-     input:
-        path BeastNexus
-        val prefix
-        val iteration
-        val nu_sim
-        val recomlen
-        val recomrate
-
-     output:
-         path "${prefix}BeastTree.newick" , emit : BeastNewick
-
-     """
-       NexusToNewick.py -t ${BeastNexus} -o '${prefix}BeastTree.newick'
-     """
-}
-
-
-process mergeTreeFiles {
-     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
-     maxForks 1
-
-    input:
-         path CFMLtree
-         path GubbinsRescaletree
-         path physherTree_two
-         val iteration
-         val nu_sim
-         val recomlen
-         val recomrate
-         //path pbtree_normal
-
-    output:
-         path 'AllOtherTrees.newick' , emit: allOtherTrees
-
-     """
-       mergeFiles.py ${CFMLtree} ${GubbinsRescaletree} ${physherTree_two}  > AllOtherTrees.newick
-     """
-}
-
-process TreeCmp {
-     publishDir "${params.outDir}" , mode: 'copy' , saveAs:{ filename -> "num_${iteration}/num_${iteration}_nu_${nu_sim}_Rlen_${recomlen}_Rrate_${recomrate}_$filename" }
-     maxForks 1
-
-     input:
-         path Clonaltree
-         //tuple val(iteration), path('unroot_Clonaltree')
-         path allOtherTrees
-         val iteration
-         val nu_sim
-         val recomlen
-         val recomrate
-
-
-     output:
-         path 'TreeCmpResult.result' , emit: Comparison
-
-     """
-       java -jar /home/nehleh/Documents/0_Research/Software/TreeCmp_v2.0-b76/bin/treeCmp.jar  -r ${Clonaltree}  -i ${allOtherTrees} -d qt pd rf ms um rfw gdu -o TreeCmpResult.result -W
-     """
-}
 
 
 process RMSE_summary {
@@ -468,7 +356,6 @@ process TreeCmp_summary {
 
 
      input:
-        //path Comparison
         path PB_dist
         path Dist_Gubbins
         path Dist_CFML
@@ -479,7 +366,6 @@ process TreeCmp_summary {
 
 
      output:
-        //path   'TreeCmp_summary.jpeg' , emit: FigTreeCmp
         path   'Dist_summary.jpeg'    , emit: FigTreeDist
 
      """
@@ -561,29 +447,6 @@ workflow ClonalFrameML {
 }
 
 
-workflow Physher {
-        take:
-            json_file
-            iteration
-            output
-            nu_sim
-            recomlen
-            recomrate
-
-        main:
-            Physher_partial(json_file,iteration,nu_sim,recomlen,recomrate)
-            Physher_tree(Physher_partial.out.physher_two_txt,iteration,nu_sim,recomlen,recomrate)
-        emit:
-            physherTree_two = Physher_tree.out.physherTree_two
-}
-
-
-
-include {   Physher_partial as physher_PBGap        ; Physher_tree as p_tree_PBGap ;
-            Physher_partial as physher_PBDel        ; Physher_tree as p_tree_PBDel ;
-            Physher_partial as physher_PB           ; Physher_tree as p_tree_PB }  from './Physher.nf'
-
-
 
 workflow {
     if (params.help) {
@@ -642,7 +505,8 @@ workflow {
         Get_raxml_tree(genome,1,1,1,1)
 
         if (params.method =~ /cfml/) {
-            ClonalFrameML(clonaltree,recom_log,genome,Get_raxml_tree.out.MyRaxML,1,1,1,1)
+            //ClonalFrameML(clonaltree,recom_log,genome,Get_raxml_tree.out.MyRaxML,1,1,1,1)
+            CFML(genome,Get_raxml_tree.out.MyRaxML,1,1,1,1)
         }
         if (params.method =~ /gub/) {
             Gubbins(genome,clonaltree,recom_log,1,1,1,1)

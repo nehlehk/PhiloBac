@@ -117,7 +117,7 @@ def set_label(tree):
 def give_taxon(tree,index):
     for node in tree.postorder_node_iter():
         if int(node.index) == index:
-            return int(node.taxon.label)
+            return (node.taxon.label)
 # **********************************************************************************************************************
 def give_taxon_index(tree,taxa,tips_num):
     node_mapping = np.zeros((tips_num,2))
