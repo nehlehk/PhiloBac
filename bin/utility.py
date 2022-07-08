@@ -88,6 +88,10 @@ def give_index(c):
         return 2
     elif c == "T":
         return 3
+    elif c == "-":
+        return -1
+    elif c == "N":
+        return -1
 # **********************************************************************************************************************
 def set_index(tree, dna):
     sequence_count = len(dna)
@@ -104,7 +108,7 @@ def set_index(tree, dna):
             s += 1
         else:
             for idx, name in enumerate(dna):
-                if str(name) == str(node.taxon):
+                if str(name).replace("_"," ") == str(node.taxon):
                     node.index = idx
                     node.label = str(node.index)
                     break

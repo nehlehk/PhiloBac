@@ -150,7 +150,7 @@ if __name__ == "__main__":
 
 
     if simulation > 0:
-        gubbins_tree.reroot_at_midpoint(update_bipartitions=True)
+        gubbins_tree.reroot_at_midpoint()
         clonal_path = args.clonaltreeFile
         clonal_tree = Tree.get_from_path(clonal_path, 'newick', taxon_namespace=tns)
         set_index(clonal_tree,alignment)

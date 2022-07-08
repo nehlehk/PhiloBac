@@ -49,7 +49,10 @@ def set_tips_partial(column,tips_num):
       for site in range(alignment_len):
         dna = column[site]
         i = give_index(str(dna[tip]))
-        partial[site][tip][i] = 1
+        if i >= 0 :
+            partial[site][tip][i] = 1
+        else:
+            partial[site][tip][0:4] = 1
     return partial
 # **********************************************************************************************************************
 def computelikelihood_mixture(tree,alignment_len,tip_partial,model,tips_num):
@@ -63,6 +66,7 @@ def computelikelihood_mixture(tree,alignment_len,tip_partial,model,tips_num):
             partial_new[..., node.index] = np.dot(model.p_matrix(children[0].edge_length), partial_new[..., children[0].index])
             for i in range(1, len(children)):
                 partial_new[..., node.index] *= np.dot(model.p_matrix(children[i].edge_length), partial_new[..., children[i].index])
+
 
     persite_ll = np.log(model.get_pi() @ partial_new[..., tree.seed_node.index])
 
@@ -160,6 +164,7 @@ def phylohmm(tree,alignment_len,column,p_start,p_trans,tips_num):
             # make recombination tree for target node using best nu
             recombination_trees.append(recom_maker(mytree[id_tree],target_node.index,nu))
             emission = Calculation.compute_logprob_phylo_bw(X, recombination_trees, GTR_sample, tipdata, alignment_len,alignment,tips_num)
+            # emission = compute_logprob_phylo_bw(X, recombination_trees, GTR_sample, tipdata, alignment_len)
             best_trans , p = Calculation.baum_welch(X, p_trans, emission, p_start, n_iter=1)
             p = p.T
             p_trans_nu0 = np.array([[1, 0],
@@ -384,9 +389,9 @@ if __name__ == "__main__":
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
 
     # path = '/home/nehleh/PhiloBacteria/Results/num_1'
-    # tree_path = path+'/num_1_nu_1_Rlen_1_Rrate_1_RAxML_bestTree.tree'
+    # tree_path = '/home/nehleh/PhiloBacteria/Emprical_Result/num_1/num_1_nu_1_Rlen_1_Rrate_1_RAxML_bestTree.tree'
     # clonal_path = path+'/num_1_Clonaltree.tree'
-    # genomefile = path+'/num_1_nu_0.05_Rlen_500_Rrate_0.01_Wholegenome.fasta'
+    # genomefile = '/home/nehleh/PhiloBacteria/hpc/0_RealData/SE_2018-20_outbreak_ten.fst'
     # baciSimLog = path+'/num_1_nu_0.05_Rlen_500_Rrate_0.01_BaciSim_Log.txt'
     # baciSimStat = path +'/num_1_nu_0.05_Rlen_500_Rrate_0.01_Recom_stat.csv'
     # json_path = '/home/nehleh/PhiloBacteria/bin/template/GTR_temp_partial.json'
@@ -412,7 +417,6 @@ if __name__ == "__main__":
     threshold = args.threshold
     simulation = args.simulation
     # json_path = args.jsonFile
-    # simulation = 0
     # ============================================ setting parameters ==================================================
     tree = Tree.get_from_path(tree_path,schema='newick')
     alignment = dendropy.DnaCharacterMatrix.get(file=open(genomefile),schema="fasta")
@@ -424,8 +428,6 @@ if __name__ == "__main__":
     set_index(tree, alignment)
     # print(tree.as_ascii_plot(show_internal_node_labels=True))
 
-    # print(tree.find_node_with_taxon_label('three').index)
-
 
     p_start = np.array([0.9, 0.1])
     p_trans = np.array([[1-(1/alignment_len), 1/alignment_len],
@@ -436,6 +438,7 @@ if __name__ == "__main__":
     for _, node in enumerate(tree.postorder_node_iter()):
         brs[node.index] = node.edge_length
     brs.pop()
+
 
     tipdata, recom_prob, posterior, best_nu = phylohmm(tree, alignment_len,column,p_start,p_trans, tips_num)
 
