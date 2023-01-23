@@ -20,6 +20,10 @@ The bonus capability is that this pipeline is not only specific to PhiloBacter. 
 ```
 "--seq" provides an option to introduce the desired aligned sequence (fasta format) to the pipeline, and "-- method" is used to specify the method for the analysis. pb for PhiloBacter, cfml for ClonalFrameML and gub for Gubbins.
 
+![This is an image](https://myoctocat.com/assets/images/base-octocat.svg)
+
+
+
 ### 2) Simulation mode
 The second mode of the pipeline is specified for experts and developers of recombination detection tools in bacterial genomes who want to compare different approaches. In this case, the pipeline consists of five main steps.
 ##### Step 1- Simulation: The first step is to simulate the clonal and local trees.
