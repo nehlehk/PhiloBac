@@ -18,6 +18,7 @@ The bonus capability is that this pipeline is not only specific to PhiloBacter. 
 ```
 ./nextflow main.nf --mode Analysis --seq genome.fasta  --method pb,cfml,gub
 ```
+"--seq" provides an option to introduce the desired aligned sequence (fasta format) to the pipeline, and "-- method" is used to specify the method for the analysis. pb for PhiloBacter, cfml for ClonalFrameML and gub for Gubbins.
 
 ### 2) Simulation mode
 > Text that is a quote
