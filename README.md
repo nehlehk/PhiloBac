@@ -20,11 +20,7 @@ The bonus capability is that this pipeline is not only specific to PhiloBacter. 
 ```
 "--seq" provides an option to introduce the desired aligned sequence (fasta format) to the pipeline, and "-- method" is used to specify the method for the analysis. pb for PhiloBacter, cfml for ClonalFrameML and gub for Gubbins.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://drive.google.com/file/d/1J5awLPm72GFmIb7FEJscIh0HbIvdo2Iz/view?usp=share_link">
-  <source media="(prefers-color-scheme: light)" srcset="[https://user-images.githubusercontent.com/25423296/163456779-a8556205-d0a5-45e2-ac17-42d089e3c3f8.png](https://drive.google.com/file/d/1J5awLPm72GFmIb7FEJscIh0HbIvdo2Iz/view?usp=share_link)">
-  <img alt="Shows an illustrated sun in light mode and a moon with stars in dark mode." src="[https://user-images.githubusercontent.com/25423296/163456779-a8556205-d0a5-45e2-ac17-42d089e3c3f8.png](https://drive.google.com/file/d/1J5awLPm72GFmIb7FEJscIh0HbIvdo2Iz/view?usp=share_link)">
-</picture>
+
 
 
 
