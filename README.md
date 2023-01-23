@@ -26,6 +26,12 @@ The second mode of the pipeline is specified for experts and developers of recom
 ##### Step 2- Generating Sequences: To generate the alignment, we use the local and clonal trees created in the last step as input to [Seq-Gen](https://github.com/rambaut/Seq-Gen) software. The default evolution model is GTR.
 ##### Step 3- Constructing an initial tree: We have used [RAxML](https://github.com/stamatak/standard-RAxML) to build the initial tree based on the sequences that are the output of Seq-Gen.
 
+##### Step 4- Recombination detection and tree inference: In this step, in addition to PhiloBacter, Gubbins and CFML tools can be run on the same simulated dataset. The output of this step is recombination events and tree inference.
+
+##### Step 5- Analysis: The last step of the pipeline consists in evaluating recombination event and phylogenetic tree estimates. Specifically, inferred tree are compared to the clonal (true) tree.
+
+There are various parameters for data simulation that can be adjusted according to the user's requirement, such as genome and recombination length or recombination rate, and time to the most recent ancestor (tMRCA). 
+
 ```
 ./nextflow main.nf --mode sim --genome 10 --genomelen 100000 --recomlen 500 --tMRCA 0.01 --recomrate 0.01 --nu_sim 0.05
 ```
