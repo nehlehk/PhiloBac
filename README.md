@@ -23,6 +23,8 @@ The bonus capability is that this pipeline is not only specific to PhiloBacter. 
 ### 2) Simulation mode
 The second mode of the pipeline is specified for experts and developers of recombination detection tools in bacterial genomes who want to compare different approaches. In this case, the pipeline consists of five main steps.
 ##### Step 1- Simulation: The first step is to simulate the clonal and local trees.
+##### Step 2- Generating Sequences: To generate the alignment, we use the local and clonal trees created in the last step as input to [Seq-Gen](https://github.com/rambaut/Seq-Gen) software. The default evolution model is GTR.
+##### Step 3- Constructing an initial tree: We have used [RAxML](https://github.com/stamatak/standard-RAxML) to build the initial tree based on the sequences that are the output of Seq-Gen.
 
 ```
 ./nextflow main.nf --mode sim --genome 10 --genomelen 100000 --recomlen 500 --tMRCA 0.01 --recomrate 0.01 --nu_sim 0.05
