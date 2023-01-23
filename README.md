@@ -20,7 +20,7 @@ The bonus capability is that this pipeline is not only specific to PhiloBacter. 
 ```
 "--seq" provides an option to introduce the desired aligned sequence (fasta format) to the pipeline, and "-- method" is used to specify the method for the analysis. pb for PhiloBacter, cfml for ClonalFrameML and gub for Gubbins.
 
-![This is an image](https://myoctocat.com/assets/images/base-octocat.svg)
+![This is an image](https://drive.google.com/file/d/1J5awLPm72GFmIb7FEJscIh0HbIvdo2Iz/view?usp=share_link)
 
 
 
