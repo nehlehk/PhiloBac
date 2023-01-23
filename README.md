@@ -17,9 +17,7 @@ The bonus capability is that this pipeline is not only specific to PhiloBacter. 
 
 ```
 ./nextflow main.nf --mode Analysis --seq genome.fasta  --method pb,cfml,gub
-
 ```
 
-> ./nextflow main.nf --mode Analysis --seq genome.fasta  --method pb,cfml,gub
 ### 2) Simulation mode
 > Text that is a quote
